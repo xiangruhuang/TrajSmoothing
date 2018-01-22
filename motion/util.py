@@ -354,13 +354,16 @@ def plot(animations):
     animation_plot([clips[0]])
 
 
-def aligned_plot(src, tgts, align, interval=8.33, H36 = False, repeat=False):
+def aligned_plot(src, tgts, align, interval=8.33, H36 = False, repeat=True):
     
     clips = []
     L = [src] + tgts 
     for anim in L:
         clips += process_animation(anim)
-
+    width = 0
+    for i in range(len(align)):
+        if len(align[i]) > width:
+            width = len(align[i])
     clips = np.array(clips)
     animations = [clip for clip in clips]
     footsteps = []
@@ -403,7 +406,7 @@ def aligned_plot(src, tgts, align, interval=8.33, H36 = False, repeat=False):
     ax.set_zticks([], [])
     ax.set_aspect('equal')
     
-    acolors = ['r'] + ['b'] * len(tgts)
+    acolors = ['r'] + ['b'] * width
     #list(sorted(colors.cnames.keys()))[::-1]
     #print acolors
     lines = []
@@ -411,44 +414,52 @@ def aligned_plot(src, tgts, align, interval=8.33, H36 = False, repeat=False):
         parents = np.array([-1, 0, 1, 2, 0, 4, 5, 0, 7, 8, 9, 9, 11, 12, 9, 14, 15])
     else:
         parents = np.array([-1, 0, 1, 2, 0, 4, 5, 0, 7, 8, 9, 8, 11, 12, 8, 14, 15])
-    for ai, anim in enumerate(animations):
-        print anim.shape
+    print animations[0].shape[1]
+    for ai in range(width+1):
         lines.append([plt.plot([0,0], [0,0], [0,0], color=acolors[ai], 
-            lw=2, path_effects=[pe.Stroke(linewidth=3, foreground='black'), pe.Normal()])[0] for _ in range(anim.shape[1])])
-
+            lw=2, path_effects=[pe.Stroke(linewidth=3, foreground='black'), pe.Normal()])[0] for _ in range(animations[0].shape[1])])
+    
+    #print len(lines)
     
     def animate(i):
         changed = []
         num_frame = animations[0].shape[0]
         ii = i % num_frame
-        if align[ii] is not None:
-            tnum, fnum = align[ii]
-        for ai in range(len(animations)):
-            #offset = 25*(ai-((len(animations))/2))
+        """ plot source animation """
+        offset = 0.0
+        for j in range(len(parents)):
+            ai = 0
+            if parents[j] != -1:
+                lines[ai][j].set_data(
+                    [ animations[ai][ii,j,0]+offset, animations[ai][ii,parents[j],0]+offset],
+                    [-animations[ai][ii,j,2],       -animations[ai][ii,parents[j],2]])
+                lines[ai][j].set_3d_properties(
+                    [ animations[ai][ii,j,1],        animations[ai][ii,parents[j],1]])
+        #print align[ii]
+        for count, pair in enumerate(align[ii]):
+            #print pair
+            tnum, fnum = pair
+            tnum += 1
             offset = 0.0 #25*(ai-((len(animations)))/2.0)
             for j in range(len(parents)):
                 if parents[j] != -1:
-                    if ai == 0:
-                        lines[ai][j].set_data(
-                            [ animations[ai][ii,j,0]+offset, animations[ai][ii,parents[j],0]+offset],
-                            [-animations[ai][ii,j,2],       -animations[ai][ii,parents[j],2]])
-                        lines[ai][j].set_3d_properties(
-                            [ animations[ai][ii,j,1],        animations[ai][ii,parents[j],1]])
-                    elif (ai == tnum+1) and (align[ii] is not None):
-                        lines[ai][j].set_data( 
-                            [animations[ai][fnum,j,0]+offset, animations[ai][fnum,parents[j],0]+offset],
-                            [-animations[ai][fnum,j,2],     -animations[ai][fnum,parents[j],2]])
-                        lines[ai][j].set_3d_properties(
-                            [ animations[ai][fnum,j,1],     animations[ai][fnum,parents[j],1]])
-                    else:
-                        lines[ai][j].set_data([], []) 
-                        lines[ai][j].set_3d_properties([])
-
-            changed += lines
+                    lines[count+1][j].set_data(
+                        [ animations[tnum][fnum,j,0]+offset, animations[tnum][fnum,parents[j],0]+offset],
+                        [-animations[tnum][fnum,j,2],       -animations[tnum][fnum,parents[j],2]])
+                    lines[count+1][j].set_3d_properties(
+                        [ animations[tnum][fnum,j,1],        animations[tnum][fnum,parents[j],1]])
+        
+        for count in range(len(align[i]), width):
+            for j in range(len(parents)):
+                if parents[j] != -1:
+                    lines[count+1][j].set_data([], [])
+                    lines[count+1][j].set_3d_properties([])
+            
+        #changed += lines
             
         #if i == 3:
         #    plt.pause(50)
-        return changed
+        return None #changed
     
     #Writer = animation.writers['ffmpeg']
     #writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)

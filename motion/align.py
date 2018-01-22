@@ -35,7 +35,7 @@ threshold = 20.0
 
 tgts = []
 src_euler = src.rotations.euler()
-align = [None for src_frame in src_euler]
+align = [[] for src_frame in src_euler]
 min_dist = [threshold for src_frame in src_euler]
 for tnum, filename in enumerate(rest):
     tgt = BVH.load(filename)
@@ -47,8 +47,15 @@ for tnum, filename in enumerate(rest):
         for j, tgt_frame in enumerate(tgt_euler):
             dist = np.linalg.norm(src_frame - tgt_frame, 2)
             if dist < min_dist[i]:
-                align[i] = (tnum, j)
-                min_dist[i] = dist
-    if tnum == 2:
+                align[i].append((tnum, j))
+    if tnum == 0:
         break
+align_rate = 0.0
+for i in range(len(align)):
+    if len(align[i]) > 0:
+        align_rate += len(align[i])
+align_rate /= len(align)
+
+print 'align_rate=%f' % align_rate
+
 aligned_plot(src, tgts, align)
