@@ -4,6 +4,8 @@
 
 using namespace std;
 
+const bool verbose = false;
+
 void print_traces(vector<vector<Point>>& traces){
     for (int i = 0; i < traces.size(); i++){
         for (int j = 0; j < traces[i].size(); j++){
@@ -26,7 +28,9 @@ vector<vector<Point>> smoothing(vector<vector<Point>>& traces, int n, int K){
         lifted_traces.push_back(lifting(traces[i], n));
         num_point += lifted_traces[i].size();
     }
-    cout << "lifting done" << endl;
+    if (verbose){
+        cerr << "lifting done" << endl;
+    }
     //print_traces(lifted_traces);
     
     double** points = new double*[num_point];
@@ -43,14 +47,20 @@ vector<vector<Point>> smoothing(vector<vector<Point>>& traces, int n, int K){
         }
     }
 
-    cout << "creating knn tree...";
+    if (verbose){
+        cerr << "creating knn tree...";
+    }
     ANNkd_tree knn(points, num_point, D);
-    cout << "done" << endl;
+    if (verbose){
+        cerr << "done" << endl;
+    }
     int* nn_idx = new int[K];
     double* dists = new double[K];
     vector<vector<Point>> smoothed_traces;
     
-    cout << "computing smooth trace...";
+    if (verbose){
+        cerr << "computing smooth trace...";
+    }
     double eps = 1e-6;
     count = 0;
     for (int i = 0; i < lifted_traces.size(); i++){
@@ -75,7 +85,9 @@ vector<vector<Point>> smoothing(vector<vector<Point>>& traces, int n, int K){
         }
         smoothed_traces.push_back(smoothed_trace);
     }
-    cout << "projecting back...";
+    if (verbose){
+        cout << "projecting back...";
+    }
     
     //project back
     vector<vector<Point>> projected_traces;
@@ -112,7 +124,9 @@ vector<vector<Point>> smoothing(vector<vector<Point>>& traces, int n, int K){
         delete down; 
         projected_traces.push_back(projected_trace);
     }
-    cout << "done" << endl;
+    if (verbose){
+        cerr << "done" << endl;
+    }
     delete dists;
     delete nn_idx;
     for (int i = 0; i < num_point; i++){
@@ -129,10 +143,10 @@ int main(int argc, char** argv){
     }
     vector<vector<Point>> traces = read_trace(argv[1]);
     int delay = atoi(argv[2]);
-    cout << "delay=" << delay << endl;
+    cerr << "delay=" << delay << endl;
     int K = atoi(argv[3]);
     int d = 2;
-    for (int iter = 0; iter < 10; iter++){ 
+    for (int iter = 0; iter < 100; iter++){ 
         vector<vector<Point>> projected_traces = smoothing(traces, delay, K);
         string name(argv[4]);
         name = name + "_iter" + to_string(iter) + ".out";
@@ -155,7 +169,9 @@ int main(int argc, char** argv){
             fout << endl;
         }
         fout.close();
-        cout << "done" << endl;
+        if (verbose){
+            cerr << "done" << endl;
+        }
         traces = projected_traces;
     }
 }

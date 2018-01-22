@@ -5,32 +5,105 @@
 #include<vector>
 #include<cassert>
 #include<iostream>
+#include<cmath>
 
 using namespace std;
 
 typedef float Float;
-typedef pair<Float, Float> Point;
+typedef vector<Float> Point;
 
 const int LINE_LEN = 100000000;
 
-Point operator + (Point const &a, Point const &b){
-    return make_pair(a.first + b.first, a.second + b.second);
+inline void print_point(Point const& a, string comment){
+    cerr << comment;
+    cerr << ":\t";
+    for (int i = 0; i < a.size(); i++){
+        if (i != 0){
+            cerr << " ";
+        }
+        cerr << a[i];
+    }
+    cerr << endl;
 }
 
-Point operator - (Point const &a, Point const &b){
-    return make_pair(a.first - b.first, a.second - b.second);
+inline Point zero_point(int d){
+    Point zero_point;
+    for (int i = 0; i < d; i++){
+        zero_point.push_back(0.0);
+    }
+    return zero_point;
 }
 
-Point operator * (Point const &a, Float const &c){
-    return make_pair(a.first * c, a.second * c);
+inline Point operator + (Point const &a, Point const &b){
+    vector<Float> c;
+    for (int i = 0; i < a.size(); i++){
+        c.push_back(a[i] + b[i]);
+    }
+    return c;
 }
 
-Point operator / (Point const &a, Float const &c){
-    return make_pair(a.first / c, a.second / c);
+inline Point operator + (Point const &a, Float const &c){
+    vector<Float> ans;
+    for (int i = 0; i < a.size(); i++){
+        ans.push_back(a[i] + c);
+    }
+    return ans;
+}
+
+inline Point operator - (Point const &a, Point const &b){
+    Point c;
+    for (int i = 0; i < a.size(); i++){
+        c.push_back(a[i] - b[i]);
+    }
+    return c;
+}
+
+inline Point operator * (Point const &a, Float const &c){
+    vector<Float> ans;
+    for (int i = 0; i < a.size(); i++){
+        ans.push_back(a[i] * c);
+    }
+    return ans;
+}
+
+inline Point operator / (Point const &a, Float const &c){
+    vector<Float> ans;
+    for (int i = 0; i < a.size(); i++){
+        ans.push_back(a[i] / c);
+    }
+    return ans;
+}
+
+inline Point operator / (Point const &a, Point const &b){
+    vector<Float> ans;
+    for (int i = 0; i < a.size(); i++){
+        ans.push_back(a[i] / b[i]);
+    }
+    return ans;
+}
+
+inline Point operator * (Point const &a, Point const &b){
+    vector<Float> ans;
+    for (int i = 0; i < a.size(); i++){
+        ans.push_back(a[i] * b[i]);
+    }
+    return ans;
+}
+
+inline Point sqrt_point(Point const &a){
+    vector<Float> ans;
+    for (int i = 0; i < a.size(); i++){
+        ans.push_back(sqrt(a[i]));
+    }
+    return ans;
 }
 
 Float normsq(Point const &a){
-    return a.first * a.first + a.second * a.second;
+    Float ans = 0.0;
+    for (int i = 0; i < a.size(); i++){
+        ans += a[i] * a[i];
+    }
+    return ans;
 }
 
 Float distance(vector<Float> a, vector<Float> b){
@@ -66,7 +139,18 @@ vector<string> split(string str, string pattern){
     return str_split;
 };
 
-vector<vector<Point>> read_trace(string filename){
+vector<string> readlines(ifstream& fin){
+    vector<string> ans;
+    char* line = new char[LINE_LEN];
+    while (!fin.eof()){
+        fin.getline(line, LINE_LEN);
+        string line_str(line);
+        ans.push_back(line_str);
+    }
+    return ans;
+}
+
+vector<vector<Point>> read_trace(string filename, int D){
     ifstream fin(filename, fstream::in);
     char* line = new char[LINE_LEN];
     vector<vector<Point>> traces;
@@ -79,13 +163,14 @@ vector<vector<Point>> read_trace(string filename){
         }
         vector<string> tokens = split(line_str, " ");
         vector<Point> trace;
-        int len = tokens.size() / 2;
+        int len = tokens.size() / D;
 
-        assert(tokens.size() % 2 == 0);
+        assert(tokens.size() % D == 0);
         for (int i = 0; i < len; i++){
-            Float lat_i = stof(tokens[i*2 + 0]);
-            Float long_i = stof(tokens[i*2 + 1]);
-            Point new_point = make_pair(lat_i, long_i);
+            Point new_point;
+            for (int d = 0; d < D; d++){
+                new_point.push_back(stof(tokens[i*D + d]));
+            }
             trace.push_back(new_point);
         }
         traces.push_back(trace);

@@ -37,10 +37,32 @@ def generate_traces_on_grids(X, Y):
     #plt.show()
     return traces
 
-def create_samples(output_file, traces):
-    with open(output_file, 'w') as fout:
+def generate_traces_on_circle(X, Y, r): 
+    angles = numpy.linspace(0.0, 3.0*numpy.pi, 100)
+    points = numpy.asarray([[r*numpy.sin(angle), r*numpy.cos(angle)] for angle in angles])
+    num_trace = 100
+    traces = []
+    for t in range(num_trace):
+        trace = []
+        a = numpy.random.randint(0, 99)
+        b = numpy.random.randint(0, 99)
+        while (a + 10 >= b):
+            a = numpy.random.randint(0, 99)
+            b = numpy.random.randint(0, 99)
+        noise = numpy.random.randn(b-a+1, 2)*0.1
+        trace = points[a:b+1, :]
+        trace = trace + noise
+        traces.append(trace)
+        #plt.plot(trace[:, 0], trace[:, 1], 'r-')
+
+    #plt.show()
+    
+    return traces
+
+def create_samples(output_file, traces, repeat, sigma):
+    with open(output_file+'.txt', 'w') as fout:
         h = plt.figure()
-        for t in range(100):
+        for t in range(repeat):
             for i, trace in enumerate(traces):
                 T = len(trace)
                 #print(T, trace.shape)
@@ -52,7 +74,7 @@ def create_samples(output_file, traces):
                     idx = int(numpy.trunc(stamp))
                     frac = stamp - idx
                     point = []
-                    noise = numpy.random.uniform(-0.1, 0.1, size=(2))
+                    noise = numpy.random.uniform(-sigma, sigma, size=(2))
                     point.append(frac*trace[idx, 0] + (1.0-frac)*trace[idx+1, 0] + noise[0])
                     point.append(frac*trace[idx, 1] + (1.0-frac)*trace[idx+1, 1] + noise[1])
                     if count != 0:
@@ -62,11 +84,12 @@ def create_samples(output_file, traces):
                 fout.write('\n')
                 sample = numpy.asarray(sample)
                 
-                plt.plot(sample[:, 0], sample[:, 1], '.', markersize=0.1)
-        plt.xlim(0, X)
-        plt.ylim(0, Y)
-        plt.savefig('sample.eps')
+                plt.plot(sample[:, 0], sample[:, 1], 'r.', markersize=0.1)
+        plt.savefig(output_file + '.eps')
 
-traces = generate_traces_on_grids(X, Y)
-
-create_samples(sys.argv[1], traces)
+if sys.argv[1] == 'grids':
+    traces = generate_traces_on_grids(X, Y)
+    create_samples('grids', traces, 100, 0.1)
+elif sys.argv[1] == 'circle':
+    traces = generate_traces_on_circle(0.0, 0.0, 1.0)
+    create_samples('circle', traces, 1, 0.0)

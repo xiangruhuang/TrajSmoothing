@@ -9,12 +9,12 @@ using namespace std;
 //
 // Longest Common Subsequences
 //
-vector<pair<int, int>> LCS(vector<Point> a, vector<Point> b, Float threshold, int period){
-    vector<pair<int, int>> matchings;
+vector<pair<pair<int, int>, Float>> LCS(vector<Point> a, vector<Point> b, Float threshold, int period){
+    vector<pair<pair<int, int>, Float>> matchings;
     int n = a.size(), m = b.size();
     int** f = new int*[n];
     int** g = new int*[n];
-    Float aug=2.0;
+    Float aug=3.0;
     for (int i = 0; i < n; i++){
         f[i] = new int[m];
         g[i] = new int[m];
@@ -25,7 +25,7 @@ vector<pair<int, int>> LCS(vector<Point> a, vector<Point> b, Float threshold, in
             Float dist = distance(a[i], b[j]);
             int match = 0;
             Float cur_threshold = threshold;
-            if (j % (period + 1) == 0 || (i % (period+1) == 0)){
+            if (j % (period + 1) != 0 || (i % (period+1) != 0)){
                 cur_threshold *= aug;
             }
             if (dist < cur_threshold){
@@ -52,11 +52,11 @@ vector<pair<int, int>> LCS(vector<Point> a, vector<Point> b, Float threshold, in
     while (i >= 0 && j >= 0){
         if (g[i][j] == 0){
             Float cur_threshold = threshold;
-            if (j % (period + 1) == 0 || (i % (period+1) == 0)){
+            if (j % (period + 1) != 0 || (i % (period+1) != 0)){
                 cur_threshold *= aug;
             }
             if (distance(a[i], b[j]) < cur_threshold){
-                matchings.push_back(make_pair(i, j));
+                matchings.push_back(make_pair(make_pair(i, j), distance(a[i], b[j])));
             }
             i--; j--;
             continue;
@@ -70,7 +70,7 @@ vector<pair<int, int>> LCS(vector<Point> a, vector<Point> b, Float threshold, in
         }
     }
     for (int i = 0; i < matchings.size() / 2; i++){
-        pair<int, int> temp = matchings[i];
+        auto temp = matchings[i];
         matchings[i] = matchings[matchings.size() - i - 1];
         matchings[matchings.size() - i - 1] = temp;
     }
@@ -82,4 +82,10 @@ vector<pair<int, int>> LCS(vector<Point> a, vector<Point> b, Float threshold, in
     delete[] g;
     return matchings;
 }
+
+vector<pair<pair<int, int>, Float>> gaussian(vector<Point>& a, vector<Point>& b, Float threshold){
+    vector<pair<pair<int, int>, Float>> matchings;
+    return matchings;
+}
+
 #endif

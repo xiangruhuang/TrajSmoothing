@@ -6,6 +6,7 @@
 #include<iostream>
 #include<algorithm>
 #include<unordered_map>
+#include<string>
 
 using namespace std;
 // Objective function L(f):
@@ -17,11 +18,67 @@ using namespace std;
 class GDSolver{
     public:
 
-        GDSolver(Float _lambda, int _max_iter){
+        GDSolver(Float _lambda, int _max_iter, int _period, int _D, Float _threshold, char* _workdir){
             this->lambda = _lambda;
             this->max_iter = _max_iter;
+            this->period = _period;
+            this->D = _D;
+            this->threshold = _threshold;
+            this->workdir = string(_workdir);
         }
-        void compute_LCS(vector<vector<Point>>& traces){
+
+        void read_correspondences(vector<vector<Point>>& traces, ifstream& fin){
+            match.clear();
+            cerr << "reading matchings from " << workdir + "/matchings" << endl;
+            while (!fin.eof()){
+                int i, j, T;
+                fin >> i >> j >> T;
+                //cerr << i << " " << j << " " << T << " " << traces[i].size() << " " << traces[j].size() << endl;
+                vector<pair<pair<int, int>, Float>> match_ij;
+                for (int t = 0; t < T; t++){
+                    int a,b;
+                    Float dist;
+                    fin >> a >> b >> dist;
+                    //cout << b << " " << traces[j].size() << endl;
+                    //cerr << b << " " << traces[j].size() << endl;
+                    assert(a < traces[i].size());
+                    assert(b < traces[j].size());
+                    match_ij.push_back(make_pair(make_pair(a, b), dist));
+                }
+                match.insert(make_pair(i*N+j, match_ij));
+            }
+            cerr << "done" << endl;
+            //vector<string> lines = readlines(fin);
+            //cerr << "... done" << endl;
+            //match.clear();
+            //vector<pair<pair<int, int>, Float>> match_ij;
+            //for (int i = 0; i < lines.size(); i++){
+            //    string& line = lines[i];
+            //    vector<string> tokens = split(line, " ");
+            //    int a = stoi(tokens[0]);
+            //    int b = stoi(tokens[1]);
+            //    int T = stoi(tokens
+            //    
+            //    vector<pair<pair<int, int>, Float>> match_ij;
+
+            //    for (int j = 0; j < tokens.size() / 3; j++){
+            //        int a = stoi(tokens[j*3+0]);
+            //        int b = stoi(tokens[j*3+1]);
+            //        Float dist = stod(tokens[j*3+2]);
+            //        match_ij.push_back(make_pair(make_pair(a, b), dist));
+            //    }
+            //    match.insert(make_pair(i*N+j, match_ij));
+
+            //}
+            fin.close();
+            
+        }
+        void compute_correspondences(vector<vector<Point>>& traces, bool use_LCS){
+            ifstream fin(workdir+"/matchings");
+            if (fin.good()){
+                read_correspondences(traces, fin);
+                return;
+            }
             int count = 0;
             float avg_len = 0;
             for (int i = 0; i < N; i++){
@@ -32,28 +89,97 @@ class GDSolver{
             avg_len /= (N * (N - 1) / 2);
             match.clear();
             float avg_match = 0;
+            ofstream fout(workdir+"/matchings"/*+to_string(threshold)*/, fstream::out);
             for (int i = 0; i < N; i++){
                 for (int j = i+1; j < N; j++){
-                    vector<pair<int, int>> match_ij = LCS(traces[i], traces[j], 2.1e-2, 10);
+                    vector<pair<pair<int, int>, Float>> match_ij;
+                    if (use_LCS){
+                        match_ij = LCS(traces[i], traces[j], threshold, period);
+                    } else {
+                        match_ij = gaussian(traces[i], traces[j], threshold); 
+                    }
+                    fout << i << " " << j << " " << match_ij.size() << endl;
+                    
+                    for (int t = 0; t < match_ij.size(); t++){
+                        if (t != 0){
+                            fout << " ";
+                        }
+                        pair<int, int> pair = match_ij[t].first;
+                        int a = pair.first;
+                        int b = pair.second;
+                        fout << a << " " << b << " " << distance(traces[i][a], traces[j][b]);
+                    }
+                    fout << endl;
                     avg_match += match_ij.size();
                     count++;
                     match.insert(make_pair(i*N+j, match_ij));
+                    cout << avg_match/count << "/" << avg_len << endl;
                 }
             }
-            cout << avg_match/count << "/" << avg_len << endl;
+            fout.close();
+            //auto temp = match;
+            //ifstream fin2(workdir+"/matchings");
+            //read_correspondences(traces, fin2);
+            //for (int i = 0; i < N; i++){
+            //    for (int j = i+1; j < N; j++){
+            //        cerr << i << " " << j << endl;
+            //        auto match_ij = match.find(i*N+j)->second;
+            //        auto temp_ij = temp.find(i*N+j)->second;
+            //        cerr << match_ij.size() << " " << temp_ij.size() << endl;
+            //        assert(match_ij.size() == temp_ij.size());
+            //        for (int t = 0; t < match_ij.size(); t++){
+            //            cerr << t << ":";
+            //            cerr << match_ij[t].first.first << " " << temp_ij[t].first.first << endl;
+            //            cerr << match_ij[t].first.second << " " << temp_ij[t].first.second << endl;
+            //            cerr << match_ij[t].second << " " << temp_ij[t].second << endl;
+            //            assert(match_ij[t].first.first == temp_ij[t].first.first);
+            //            assert(match_ij[t].first.second == temp_ij[t].first.second);
+            //            assert(fabs(match_ij[t].second-temp_ij[t].second) < 1e-2);
+            //        }
+            //    }
+            //}
+            
+            cout << avg_match/count << "/" << avg_len << endl; 
         }
         void solve(vector<vector<Point>>& traces){
             N = traces.size();
-            Float C_smooth = 1.0;
-            Float C_align = 1.0;
+            mean = zero_point(D);
+            Float count = 0;
+            for (int i = 0; i < N; i++){
+                for (int t = 0; t < traces[i].size(); t++){
+                    mean = mean + traces[i][t];
+                    count += 1.0;
+                }
+            }
+            mean = mean / count;
+            std = zero_point(D) + 1e-5;
+            for (int i = 0; i < N; i++){
+                for (int t = 0; t < traces[i].size(); t++){
+                    Point diff = traces[i][t] - mean;
+                    Point diff_sq = diff * diff;
+                    std = std + diff_sq;
+                }
+            }
+            std = std / count;
+            std = sqrt_point(std);
+            for (int i = 0; i < N; i++){
+                for (int t = 0; t < traces[i].size(); t++){
+                    traces[i][t] = traces[i][t] / std;
+                }
+            }
+            print_point(mean, "mean");
+            print_point(std, "std");
+            
+            Float C_smooth = 1e-1;
+            Float C_align = 10;
             Float C_vanilla = 1.0;
-            compute_LCS(traces);
+            compute_correspondences(traces, true);
             vector<vector<Point>> recover = traces;
             vector<vector<Point>> grads;
             for (int i = 0; i < N; i++){
                 vector<Point> grad;
                 for (int t = 0; t < traces[i].size(); t++){
-                    grad.push_back(make_pair(0.0, 0.0));
+                    grad.push_back(zero_point(D));
                 }
                 grads.push_back(grad);
             }
@@ -70,7 +196,7 @@ class GDSolver{
                     int T = traces[i].size();
                     vector<Point>& grad = grads[i];
                     for (int t = 0; t < grad.size(); t++){
-                        grad[t] = make_pair(0.0, 0.0);
+                        grad[t] = zero_point(D);
                     }
                     // smooth
                     for (int t = 1; t < traces[i].size(); t++){
@@ -87,14 +213,15 @@ class GDSolver{
                         if (i == j){
                             continue;
                         }
-                        vector<pair<int, int>> match_ij;
+                        vector<pair<pair<int, int>, Float>> match_ij;
                         if (i < j){
                             match_ij = match.find(i*N + j)->second;
                         } else {
                             match_ij = match.find(j*N + i)->second;
                         }
                         for (int p = 0; p < match_ij.size(); p++){
-                            int a = match_ij[p].first, b = match_ij[p].second;
+                            pair<int, int>& pair = match_ij[p].first;
+                            int a = pair.first, b = pair.second;
                             if (i > j){
                                 int temp = a; a = b; b = temp;
                             }
@@ -111,7 +238,7 @@ class GDSolver{
                     //cout << ((nonzero * 1.0) / T) << endl;
                     // vanilla
                     for (int j = 0; j < traces[i].size(); j++){
-                        if (j % (11) != 0){
+                        if (j % (period + 1) != 0){
                             continue;
                         }
                         grad[j] = grad[j] + (recover[i][j] - traces[i][j]) * C_vanilla;
@@ -128,7 +255,7 @@ class GDSolver{
                 Float energy_vanilla = 0.0;
                 for (int i = 0; i < N; i++){
                     for (int j = 0; j < traces[i].size(); j++){
-                        if (j % (11) != 0){
+                        if (j % (period + 1) != 0){
                             continue;
                         }
                         energy_vanilla += normsq(traces[i][j] - recover[i][j]) * C_vanilla * 0.5;
@@ -146,10 +273,11 @@ class GDSolver{
                 Float energy_align = 0.0;
                 for (int i = 0; i < N; i++){
                     for (int j = i+1; j < N; j++){
-                        vector<pair<int, int>> match_ij;
+                        vector<pair<pair<int, int>, Float>> match_ij;
                         match_ij = (match.find(i*N + j))->second;
                         for (int p = 0; p < match_ij.size(); p++){
-                            int a = match_ij[p].first, b = match_ij[p].second;
+                            pair<int, int> pair = match_ij[p].first;
+                            int a = pair.first, b = pair.second;
                             energy_align += normsq(recover[i][a] - recover[j][b]) * C_align * 0.5;
                         }
                     } 
@@ -162,27 +290,42 @@ class GDSolver{
                 cout << ", energy=" << (energy_vanilla + energy_smooth + energy_align);
                 cout << endl;
                 iter++;
-                if (iter % 1000 == 0){
-                    ofstream fout("recover/"+to_string(iter)+".txt", fstream::out);
+                if (iter % 100 == 0){
+                    ofstream fout(workdir+"/"+to_string(iter)+".txt", fstream::out);
                     for (int i = 0; i < N; i++){
                         for (int p = 0; p < recover[i].size(); p++){
                             if (p != 0){
                                 fout << " ";
                             }
-                            fout << recover[i][p].first << " " << recover[i][p].second;
+                            Point rip = recover[i][p] * std;
+                            for (int tt = 0; tt < rip.size(); tt++){
+                                if (tt != 0){
+                                    fout << " ";
+                                }
+                                fout << rip[tt] ;
+                            }
                         }
                         fout << endl;
                     }
                     fout.close();
                 }
             }
+            for (int i = 0; i < N; i++){
+                for (int t = 0; t < traces[i].size(); t++){
+                    traces[i][t] = traces[i][t] * std;
+                    recover[i][t] = recover[i][t] * std;
+                }
+            }
         }
 
-        int N;
-        unordered_map<int, vector<pair<int,int>>> match;
+        int D, N;
+        Point mean, std;
+        unordered_map<int, vector<pair<pair<int,int>, Float>>> match;
         vector<vector<Point>> recover;
-        Float lambda;
+        Float lambda, threshold;
         int max_iter;
+        int period;
+        string workdir;
 };
 
 #endif

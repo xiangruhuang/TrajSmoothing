@@ -11,19 +11,30 @@ import numpy as np
 #ymax = 40.2
 
 def plot_from_file(input_file):
+
     with open(input_file, 'r') as fin:
         lines = fin.readlines()
+        maxx = -1e10
+        minx = 1e10
+        maxy = -1e10
+        miny = 1e10
         for line in lines:
             tokens = np.asarray([float(s) for s in line.strip().split(' ')])
             x = tokens[0::2]
+            maxx = max(maxx, max(x))
+            minx = min(minx, min(x))
+            
             y = tokens[1::2]
-            plt.plot(x, y, '.', markersize=0.1)
+            maxy = max(maxy, max(y))
+            miny = min(miny, min(y))
+            
+            plt.plot(x, y, 'b.-', markersize=0.1)
         #plt.show()
-        plt.xlim(-0.5, 10.5)
-        plt.ylim(-0.5, 10.5)
+        plt.xlim(minx-0.5, maxx+0.5)
+        plt.ylim(miny-0.5, maxy+0.5)
         plt.title(input_file)
         output_file = '/'.join(input_file.split('/')[:-1] +
-                [input_file.split('/')[-1].split('.')[0]+'.png'])
+                [input_file.split('/')[-1].split('.')[0]+'.eps'])
         print output_file
         plt.savefig(output_file)
 
