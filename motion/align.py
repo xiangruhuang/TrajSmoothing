@@ -29,13 +29,26 @@ src = BVH.load(filelist[I])
 
 #print type(src)
 
-plot([src])
+#plot([src])
 
-#for filename in rest:
-#    tgt = BVH.load(filename)
-#    """ Aligning tgt and src """
-#    print dir(src.rotations.interpolate)
-#    #print src.rotations.euler()/np.pi * 180.0
-#    break
-#    #for src_rot in src.rotations:
-#        #print src_rot.shape
+threshold = 20.0
+
+tgts = []
+src_euler = src.rotations.euler()
+align = [None for src_frame in src_euler]
+min_dist = [threshold for src_frame in src_euler]
+for tnum, filename in enumerate(rest):
+    tgt = BVH.load(filename)
+    tgts.append(tgt)
+    """ Aligning tgt and src """
+    tgt_euler = tgt.rotations.euler()
+    for i, src_frame in enumerate(src_euler):
+        #print i, src_frame.shape
+        for j, tgt_frame in enumerate(tgt_euler):
+            dist = np.linalg.norm(src_frame - tgt_frame, 2)
+            if dist < min_dist[i]:
+                align[i] = (tnum, j)
+                min_dist[i] = dist
+    if tnum == 2:
+        break
+aligned_plot(src, tgts, align)

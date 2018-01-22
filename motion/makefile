@@ -4,8 +4,7 @@ name=walk
 all:
 	make data/$(name).npz
 	mkdir -p $(name)/videos
-	#python view.py $(name)
-	#scp -r $(name)/videos xrhuang@narsil-4.cs.utexas.edu:./public_html/animations/$(name)
+	make $(name)/trajs.txt
 
 %.mp4:
 	python view.py $(name)
@@ -22,7 +21,7 @@ remove_odd:
 		python traj_remove_odd.py $$i; \
 	done
 
-%/lists.txt:
+%/trajs.txt:
 	$(eval folder:= $(dir $@))
 	python bvh2traj.py $(folder)
 

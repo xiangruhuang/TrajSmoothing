@@ -142,7 +142,7 @@ def load(filename, start=None, end=None, order=None, world=False, bvh = False):
             N = len(parents)
             fi = i - start if start else i
             if   channels == 3:
-                positions[fi,0:1] = data_block[0:3]
+                positions[fi,0:1] = [0.0, 0.0, 0.0]#data_block[0:3]
                 a1 =  data_block[3]
                 a2 =  data_block[4]
                 a3 =  data_block[5]
