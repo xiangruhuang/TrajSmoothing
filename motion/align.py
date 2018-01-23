@@ -31,7 +31,7 @@ src = BVH.load(filelist[I])
 
 #plot([src])
 
-threshold = 20.0
+threshold = 1.0
 
 tgts = []
 src_euler = src.rotations.euler()
@@ -44,12 +44,17 @@ for tnum, filename in enumerate(rest):
     tgt_euler = tgt.rotations.euler()
     for i, src_frame in enumerate(src_euler):
         #print i, src_frame.shape
+        min_d = 1e10
+        min_index = -1
+        dists = np.linalg.norm(tgt_euler - src_frame, 2, axis=(1,2))
         for j, tgt_frame in enumerate(tgt_euler):
-            dist = np.linalg.norm(src_frame - tgt_frame, 2)
-            if dist < min_dist[i]:
-                align[i].append((tnum, j))
-    if tnum == 0:
-        break
+            dist = dists[j]
+            if dist < min_d:
+                min_d = dist
+                min_index = j
+        if min_d < threshold:
+            align[i].append((tnum, j))
+
 align_rate = 0.0
 for i in range(len(align)):
     if len(align[i]) > 0:

@@ -422,6 +422,7 @@ def aligned_plot(src, tgts, align, interval=8.33, H36 = False, repeat=True):
     #print len(lines)
     
     def animate(i):
+        print i
         changed = []
         num_frame = animations[0].shape[0]
         ii = i % num_frame
@@ -449,7 +450,7 @@ def aligned_plot(src, tgts, align, interval=8.33, H36 = False, repeat=True):
                     lines[count+1][j].set_3d_properties(
                         [ animations[tnum][fnum,j,1],        animations[tnum][fnum,parents[j],1]])
         
-        for count in range(len(align[i]), width):
+        for count in range(len(align[ii]), width):
             for j in range(len(parents)):
                 if parents[j] != -1:
                     lines[count+1][j].set_data([], [])
