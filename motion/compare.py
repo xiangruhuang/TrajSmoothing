@@ -17,10 +17,10 @@ clips += process_file(sys.argv[2])
 clips = np.array(clips)
 print clips[0].shape, type(clips[0])
 print clips.shape, type(clips)
-np.savez_compressed('data/compare', clips=clips)
-io.savemat('data/compare.mat', dict(clips=clips), do_compression=True)
+np.savez_compressed('/home/xiangru/Projects/Qixing/TrajSmoothing/motion/data/compare', clips=clips)
+io.savemat('/home/xiangru/Projects/Qixing/TrajSmoothing/motion/data/compare.mat', dict(clips=clips), do_compression=True)
 
-database = np.load('data/compare.npz')['clips']
+database = np.load('/home/xiangru/Projects/Qixing/TrajSmoothing/motion/data/compare.npz')['clips']
 
 
 #print type(database[0])
@@ -28,10 +28,10 @@ database = np.load('data/compare.npz')['clips']
 #print clips.shape
 
 database = clips
-print database[0].shape, type(database[0])
-print database.shape, type(database)
-print clips[0].shape, type(clips[0])
-print clips.shape, type(clips)
+#print database[0].shape, type(database[0])
+#print database.shape, type(database)
+#print clips[0].shape, type(clips[0])
+#print clips.shape, type(clips)
 
 animation_plot([database[0], database[1]], H36=False, repeat=True)
 

@@ -85,7 +85,40 @@ vector<pair<pair<int, int>, Float>> LCS(vector<Point> a, vector<Point> b, Float 
 
 vector<pair<pair<int, int>, Float>> gaussian(vector<Point>& a, vector<Point>& b, Float threshold){
     vector<pair<pair<int, int>, Float>> matchings;
+    for (int i = 0; i < a.size(); i++){
+        Float min_dist = 1e10;
+        pair<pair<int, int>, Float> record;
+        for (int j = 0; j < b.size(); j++){
+            Float dist = distance(a[i], b[j]);
+            if (dist < min_dist){
+                min_dist = dist;
+                record = make_pair(make_pair(i, j), dist);
+            }
+        }
+        if (min_dist < threshold){
+            matchings.push_back(record);
+        }
+    }
+    for (int j = 0; j < b.size(); j++){
+        Float min_dist = 1e10;
+        pair<pair<int, int>, Float> record;
+        for (int i = 0; i < a.size(); i++){
+            Float dist = distance(a[i], b[j]);
+            if (dist < min_dist){
+                min_dist = dist;
+                record = make_pair(make_pair(i, j), dist);
+            }
+        }
+        if (min_dist < threshold){
+            matchings.push_back(record);
+        }
+    }
     return matchings;
 }
+
+vector<Point> gauss_elim_tridiag(){
+    
+}
+
 
 #endif

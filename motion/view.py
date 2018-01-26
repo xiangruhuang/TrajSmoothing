@@ -33,11 +33,14 @@ def view_matchings(a, b):
             for a, b in zip(tuples[0::2], tuples[1::2]):
                 compare(i, j, a+3, b+3)
                
-a = int(sys.argv[2])
-b = int(sys.argv[3])
-print "comparing animations a b"
+#a = int(sys.argv[2])
+#b = int(sys.argv[3])
+#print "comparing animations a b"
+#
+#view_matchings(a, b)
 
-view_matchings(a, b)
+f = 
+
 
 #print type(database[0]), database[0].shape 
 #

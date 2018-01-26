@@ -7,6 +7,7 @@
 #include<algorithm>
 #include<unordered_map>
 #include<string>
+#include "Motion.h"
 
 using namespace std;
 // Objective function L(f):
@@ -18,7 +19,7 @@ using namespace std;
 class GDSolver{
     public:
 
-        GDSolver(Float _lambda, int _max_iter, int _period, int _D, Float _threshold, char* _workdir){
+        GDSolver(Float _lambda, int _max_iter, int _period, int _D, Float _threshold, string _workdir){
             this->lambda = _lambda;
             this->max_iter = _max_iter;
             this->period = _period;
@@ -140,6 +141,181 @@ class GDSolver{
             //}
             
             cout << avg_match/count << "/" << avg_len << endl; 
+        }
+        void solve_motion(vector<vector<Point>>& traces, vector<Motion>& motions, vector<string>& filelist){
+            N = traces.size();
+            mean = zero_point(D);
+            Float count = 0;
+            for (int i = 0; i < N; i++){
+                for (int t = 0; t < traces[i].size(); t++){
+                    mean = mean + traces[i][t];
+                    count += 1.0;
+                }
+            }
+            mean = mean / count;
+            std = zero_point(D) + 1e-5;
+            for (int i = 0; i < N; i++){
+                for (int t = 0; t < traces[i].size(); t++){
+                    Point diff = traces[i][t] - mean;
+                    Point diff_sq = diff * diff;
+                    std = std + diff_sq;
+                }
+            }
+            std = std / count;
+            std = sqrt_point(std);
+            for (int i = 0; i < N; i++){
+                for (int t = 0; t < traces[i].size(); t++){
+                    traces[i][t] = traces[i][t] / std;
+                }
+            }
+            print_point(mean, "mean");
+            print_point(std, "std");
+            
+            Float C_smooth = 10.0;
+            Float C_align = 1.0;
+            Float C_vanilla = 1.0;
+            compute_correspondences(traces, false);
+            vector<vector<Point>> recover = traces;
+            vector<vector<Point>> grads;
+            for (int i = 0; i < N; i++){
+                vector<Point> grad;
+                for (int t = 0; t < traces[i].size(); t++){
+                    grad.push_back(zero_point(D));
+                }
+                grads.push_back(grad);
+            }
+            int iter = 0;
+            vector<int> indices;
+            for (int i = 0; i < N; i++){
+                indices.push_back(i);
+            }
+            while (iter < max_iter){
+                random_shuffle(indices.begin(), indices.end());
+                Float grad_l2 = 0.0;
+                for (int _i = 0; _i < N; _i++){
+                    int i = indices[_i];
+                    int T = traces[i].size();
+                    vector<Point>& grad = grads[i];
+                    for (int t = 0; t < grad.size(); t++){
+                        grad[t] = zero_point(D);
+                    }
+                    // smooth
+                    for (int t = 1; t < traces[i].size(); t++){
+                        Point diff = (recover[i][t] - recover[i][t-1]) - (traces[i][t] - traces[i][t-1]);
+                        grad[t] = grad[t] + diff * C_smooth;
+                        grad[t-1] = grad[t-1] - diff * C_smooth;
+                    }
+                    // align
+                    //vector<int> count;
+                    //for (int j = 0; j < T; j++){
+                    //    count.push_back(0);
+                    //}
+                    for (int j = 0; j < N; j++){
+                        if (i == j){
+                            continue;
+                        }
+                        vector<pair<pair<int, int>, Float>> match_ij;
+                        if (i < j){
+                            match_ij = match.find(i*N + j)->second;
+                        } else {
+                            match_ij = match.find(j*N + i)->second;
+                        }
+                        for (int p = 0; p < match_ij.size(); p++){
+                            pair<int, int>& pair = match_ij[p].first;
+                            int a = pair.first, b = pair.second;
+                            if (i > j){
+                                int temp = a; a = b; b = temp;
+                            }
+                            grad[a] = grad[a] + (recover[i][a] - recover[j][b]) * C_align;
+                            //count[a]++;
+                        }
+                    }
+                    //int nonzero = 0;
+                    //for (int j = 0; j < T; j++){
+                    //    if (count[j] > 3){
+                    //        nonzero++;
+                    //    }
+                    //}
+                    //cout << ((nonzero * 1.0) / T) << endl;
+                    // vanilla
+                    for (int j = 0; j < traces[i].size(); j++){
+                        if (j % (period + 1) != 0){
+                            continue;
+                        }
+                        grad[j] = grad[j] + (recover[i][j] - traces[i][j]) * C_vanilla;
+                    }
+                    //Update
+                    for (int j = 0; j < recover[i].size(); j++){
+                        grad_l2 += normsq(grad[j]);
+                        recover[i][j] = recover[i][j] - grad[j] * lambda;
+                    }
+                }
+
+                //Compute Energy
+                //Vanilla Part
+                Float energy_vanilla = 0.0;
+                for (int i = 0; i < N; i++){
+                    for (int j = 0; j < traces[i].size(); j++){
+                        if (j % (period + 1) != 0){
+                            continue;
+                        }
+                        energy_vanilla += normsq(traces[i][j] - recover[i][j]) * C_vanilla * 0.5;
+                    }
+                }
+                //Smooth Part
+                Float energy_smooth = 0.0;
+                for (int i = 0; i < N; i++){
+                    for (int t = 1; t < traces[i].size(); t++){
+                        Point diff = (recover[i][t] - recover[i][t-1]) - (traces[i][t] - traces[i][t-1]);
+                        energy_smooth += normsq(diff) * C_smooth * 0.5;
+                    }
+                }
+                //Align Part
+                Float energy_align = 0.0;
+                for (int i = 0; i < N; i++){
+                    for (int j = i+1; j < N; j++){
+                        vector<pair<pair<int, int>, Float>> match_ij;
+                        match_ij = (match.find(i*N + j))->second;
+                        for (int p = 0; p < match_ij.size(); p++){
+                            pair<int, int> pair = match_ij[p].first;
+                            int a = pair.first, b = pair.second;
+                            energy_align += normsq(recover[i][a] - recover[j][b]) * C_align * 0.5;
+                        }
+                    } 
+                }
+                cout << "iter=" << iter;
+                cout << ", grad_l2=" << grad_l2;
+                cout << ", vanilla=" << energy_vanilla;
+                cout << ", smooth=" << energy_smooth;
+                cout << ", align=" << energy_align;
+                cout << ", energy=" << (energy_vanilla + energy_smooth + energy_align);
+                cout << endl;
+                iter++;
+                if (iter % 100 == 0){
+                    for (int i = 0; i < N; i++){
+                        for (int t = 0; t < traces[i].size(); t++){
+                            traces[i][t] = traces[i][t] * std;
+                            recover[i][t] = recover[i][t] * std;
+                        }
+                    }
+                    for (int i = 0; i < traces.size(); i++){
+                        motions[i].rotations = recover[i];
+                        motions[i].write_bvh(workdir+"/"+to_string(iter)+"/"+filelist[i]);
+                    }
+                    for (int i = 0; i < N; i++){
+                        for (int t = 0; t < traces[i].size(); t++){
+                            traces[i][t] = traces[i][t] / std;
+                            recover[i][t] = recover[i][t] / std;
+                        }
+                    }
+                }
+            }
+            for (int i = 0; i < N; i++){
+                for (int t = 0; t < traces[i].size(); t++){
+                    traces[i][t] = traces[i][t] * std;
+                    recover[i][t] = recover[i][t] * std;
+                }
+            }
         }
         void solve(vector<vector<Point>>& traces){
             N = traces.size();

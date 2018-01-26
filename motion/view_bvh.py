@@ -14,10 +14,10 @@ clips = []
 clips += process_file(sys.argv[1])
 
 clips = np.array(clips)
-np.savez_compressed('data/tmp', clips=clips)
-io.savemat('data/tmp.mat', dict(clips=clips), do_compression=True)
+np.savez_compressed('/home/xiangru/Projects/Qixing/TrajSmoothing/motion/data/tmp', clips=clips)
+io.savemat('/home/xiangru/Projects/Qixing/TrajSmoothing/motion/data/tmp.mat', dict(clips=clips), do_compression=True)
 
-database = np.load('data/tmp.npz')['clips']
+database = np.load('/home/xiangru/Projects/Qixing/TrajSmoothing/motion/data/tmp.npz')['clips']
 
 print database.shape
 

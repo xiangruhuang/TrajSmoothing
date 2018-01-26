@@ -16,7 +16,8 @@ import BVH
 import Animation
 from Quaternions import Quaternions
 
-def animation_plot(animations, interval=8.33, H36 = False, repeat=False):
+def animation_plot(animations, interval=8.33, H36 = False, repeat=False,
+        output_video=None):
     
     footsteps = []
     for ai in range(len(animations)):
@@ -25,7 +26,7 @@ def animation_plot(animations, interval=8.33, H36 = False, repeat=False):
         joints, root_x, root_z, root_r = anim[:,:-3], anim[:,-3], anim[:,-2], anim[:,-1]
         
         joints = joints.reshape((len(joints), -1, 3))
-        
+        #print joints[12][0,:]
         rotation = Quaternions.id(1)
         offsets = []
         translation = np.array([[0,0,0]])
@@ -38,17 +39,16 @@ def animation_plot(animations, interval=8.33, H36 = False, repeat=False):
             offsets.append(rotation * np.array([0,0,1]))
             translation = translation + rotation * np.array([root_x[i], 0, root_z[i]])
         
-        print joints.shape, animations[ai].shape
         animations[ai] = joints
         footsteps.append(anim[:,-4:])
-        
+    
     footsteps = np.array(footsteps)
     
     #scale = 1.25*((len(animations))/2)
     scale = 1.25#*((len(animations)))
     #print(animation.writers.list())
     Writer = animation.writers['ffmpeg']
-    writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
+    writer = Writer(fps=120, metadata=dict(artist='Me'), bitrate=18000)
     fig = plt.figure(figsize=(12,8))
     ax = fig.add_subplot(111, projection='3d')
     ax.set_xlim3d(-scale*30, scale*30)
@@ -59,7 +59,7 @@ def animation_plot(animations, interval=8.33, H36 = False, repeat=False):
     ax.set_zticks([], [])
     ax.set_aspect('equal')
     
-    acolors = ['r', 'b']
+    acolors = ['r'] + ['b'] * (len(animations)-1)
     #list(sorted(colors.cnames.keys()))[::-1]
     #print acolors
     lines = []
@@ -71,9 +71,11 @@ def animation_plot(animations, interval=8.33, H36 = False, repeat=False):
         lines.append([plt.plot([0,0], [0,0], [0,0], color=acolors[ai], 
             lw=2, path_effects=[pe.Stroke(linewidth=3, foreground='black'), pe.Normal()])[0] for _ in range(anim.shape[1])])
     
+    num_frames = np.arange(max([len(ai) for ai in animations]))
+
     def animate(i):
         changed = []
-        #print i
+        print '( %d / %d )' % (i, len(num_frames))
         #print np.linalg.norm(np.reshape(animations[0], [-1]) - np.reshape(animations[1],
         #    [-1]), 2)
         for ai in range(len(animations)):
@@ -81,17 +83,14 @@ def animation_plot(animations, interval=8.33, H36 = False, repeat=False):
             offset = 0.0 #25*(ai-((len(animations)))/2.0)
             num_frame = animations[ai].shape[0]
             ii = i % num_frame
+            print animations[ai][ii, 0, :]
             for j in range(len(parents)):
                 if parents[j] != -1:
-                    if i % 2 == 0 and ai == 1:
-                        lines[ai][j].set_data([], [])
-                        lines[ai][j].set_3d_properties([])
-                    else:
-                        lines[ai][j].set_data(
-                            [ animations[ai][ii,j,0]+offset, animations[ai][ii,parents[j],0]+offset],
-                            [-animations[ai][ii,j,2],       -animations[ai][ii,parents[j],2]])
-                        lines[ai][j].set_3d_properties(
-                            [ animations[ai][ii,j,1],        animations[ai][ii,parents[j],1]])
+                    lines[ai][j].set_data(
+                        [ animations[ai][ii,j,0]+offset, animations[ai][ii,parents[j],0]+offset],
+                        [-animations[ai][ii,j,2],       -animations[ai][ii,parents[j],2]])
+                    lines[ai][j].set_3d_properties(
+                        [ animations[ai][ii,j,1],        animations[ai][ii,parents[j],1]])
             changed += lines
             
         #if i == 3:
@@ -102,15 +101,18 @@ def animation_plot(animations, interval=8.33, H36 = False, repeat=False):
     #writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
 
     plt.tight_layout()
-    num_frames = np.arange(max([len(ai) for ai in animations]))
+    
+    if output_video:
+        repeat = False
     
     ani = animation.FuncAnimation(fig, 
         animate, num_frames,
         interval=interval, repeat=repeat)
-    #global count
-    #ani.save('%s/videos/%d.mp4' % (sys.argv[1], count), writer=writer)
-    #count += 1
-    plt.show()
+    
+    if output_video is not None:
+        ani.save('%s' % (output_video), writer=writer)
+    else:
+        plt.show()
 
 def process_file(filename, window=240, window_step=120, export_trajectory=False, H36 = False ):
 
@@ -125,6 +127,8 @@ def process_file(filename, window=240, window_step=120, export_trajectory=False,
 
     """ Do FK """
     global_positions = Animation.positions_global(anim)
+    #print 'global', global_positions.shape
+    #print 'frame 0, joint 0', global_positions[0][0, :]
     #print global_positions[0,:,:]
     #print(global_positions.shape)
 
@@ -152,7 +156,7 @@ def process_file(filename, window=240, window_step=120, export_trajectory=False,
     
 
     """ Put on Floor """
-    positions[:,:,1] -= positions[:,:,1].min()
+    #positions[:,:,1] -= positions[:,:,1].min()
     '''
     """ Get Foot Contacts """
     velfactor, heightfactor = np.array([0.05,0.05]), np.array([3.0, 2.0])
@@ -226,6 +230,7 @@ def process_file(filename, window=240, window_step=120, export_trajectory=False,
         if len(slice) != window: raise Exception()
         windows.append(slice)
         
+    #print 'frame 0, joint 0', windows[0][0, :]
     return windows
 
 def process_animation(anim, window=240, window_step=120, export_trajectory=False, H36 = False ):
@@ -242,9 +247,6 @@ def process_animation(anim, window=240, window_step=120, export_trajectory=False
     #print global_positions[0,:,:]
     #print(global_positions.shape)
 
-    window=global_positions.shape[0]
-    window_step = window
-
     """ Remove Uneeded Joints """
     if ~H36:
         used_joints = np.array([
@@ -263,10 +265,9 @@ def process_animation(anim, window=240, window_step=120, export_trajectory=False
             18, 19, 20,
             25, 26, 27])
     positions = global_positions[:,used_joints]
-    
 
     """ Put on Floor """
-    positions[:,:,1] -= positions[:,:,1].min()
+    #positions[:,:,1] -= positions[:,:,1].min()
     '''
     """ Get Foot Contacts """
     velfactor, heightfactor = np.array([0.05,0.05]), np.array([3.0, 2.0])
@@ -290,7 +291,7 @@ def process_animation(anim, window=240, window_step=120, export_trajectory=False
     """ Remove Translation """
     positions[:,:,0] = positions[:,:,0] - positions[:,0:1,0]
     positions[:,:,2] = positions[:,:,2] - positions[:,0:1,2]
-    
+
     """ Get Forward Direction """
     sdr_l, sdr_r, hip_l, hip_r = 11, 14, 1, 4
     across1 = positions[:,hip_l] - positions[:,hip_r]
@@ -315,6 +316,8 @@ def process_animation(anim, window=240, window_step=120, export_trajectory=False
     """ Add Velocity, RVelocity to vector """
     positions = positions[:-1]
     positions = positions.reshape(len(positions), -1)
+    window=len(positions)
+    window_step = window
     
     positions = np.concatenate([positions, velocity[:,:,0]], axis=-1)
     positions = np.concatenate([positions, velocity[:,:,2]], axis=-1)
@@ -330,19 +333,23 @@ def process_animation(anim, window=240, window_step=120, export_trajectory=False
     for j in range(0, len(positions), window_step):
     
         slice = positions[j:j+window]
-        if len(slice) < window:
-            left  = slice[:1].repeat((window-len(slice))//2 + (window-len(slice))%2, axis=0)
-            left[:,-7:-4] = 0.0
-            right = slice[-1:].repeat((window-len(slice))//2, axis=0)
-            right[:,-7:-4] = 0.0
-            slice = np.concatenate([left, slice, right], axis=0)
-        
+        #print len(positions), window
+        #if len(slice) < window:
+        #    left  = slice[:1].repeat((window-len(slice))//2 + (window-len(slice))%2, axis=0)
+        #    left[:,-7:-4] = 0.0
+        #    right = slice[-1:].repeat((window-len(slice))//2, axis=0)
+        #    right[:,-7:-4] = 0.0
+        #    slice = np.concatenate([left, slice, right], axis=0)
+        #print len(slice)
         if len(slice) != window: raise Exception()
         windows.append(slice)
+
+    assert len(windows) == 1
+    #print 'joint 0, frame 10-20', windows[0][100:120, :3]
         
     return windows
 
-def plot(animations):
+def plot(animations, output_video=None):
     clips = []
     
     for anim in animations:
@@ -351,10 +358,12 @@ def plot(animations):
     clips += []
 
     clips = np.array(clips)
-    animation_plot([clips[0]])
+    animation_plot([clips[i] for i in range(len(animations))], output_video =
+            output_video)
+    #animation_plot([clips[0], clips[1]])
 
-
-def aligned_plot(src, tgts, align, interval=8.33, H36 = False, repeat=True):
+def aligned_plot(src, tgts, align, interval=8.33, H36 = False, repeat=True,
+        output_video=None):
     
     clips = []
     L = [src] + tgts 
@@ -414,17 +423,15 @@ def aligned_plot(src, tgts, align, interval=8.33, H36 = False, repeat=True):
         parents = np.array([-1, 0, 1, 2, 0, 4, 5, 0, 7, 8, 9, 9, 11, 12, 9, 14, 15])
     else:
         parents = np.array([-1, 0, 1, 2, 0, 4, 5, 0, 7, 8, 9, 8, 11, 12, 8, 14, 15])
-    print animations[0].shape[1]
     for ai in range(width+1):
         lines.append([plt.plot([0,0], [0,0], [0,0], color=acolors[ai], 
             lw=2, path_effects=[pe.Stroke(linewidth=3, foreground='black'), pe.Normal()])[0] for _ in range(animations[0].shape[1])])
     
-    #print len(lines)
+    num_frame = animations[0].shape[0]
+    frame_ids = np.arange(num_frame)
     
     def animate(i):
-        print i
         changed = []
-        num_frame = animations[0].shape[0]
         ii = i % num_frame
         """ plot source animation """
         offset = 0.0
@@ -432,7 +439,8 @@ def aligned_plot(src, tgts, align, interval=8.33, H36 = False, repeat=True):
             ai = 0
             if parents[j] != -1:
                 lines[ai][j].set_data(
-                    [ animations[ai][ii,j,0]+offset, animations[ai][ii,parents[j],0]+offset],
+                    [ animations[ai][ii,j,0]+offset,
+                        animations[ai][ii,parents[j],0]+offset],
                     [-animations[ai][ii,j,2],       -animations[ai][ii,parents[j],2]])
                 lines[ai][j].set_3d_properties(
                     [ animations[ai][ii,j,1],        animations[ai][ii,parents[j],1]])
@@ -445,7 +453,8 @@ def aligned_plot(src, tgts, align, interval=8.33, H36 = False, repeat=True):
             for j in range(len(parents)):
                 if parents[j] != -1:
                     lines[count+1][j].set_data(
-                        [ animations[tnum][fnum,j,0]+offset, animations[tnum][fnum,parents[j],0]+offset],
+                        [ animations[tnum][fnum,j,0]+offset,
+                            animations[tnum][fnum,parents[j],0]+offset],
                         [-animations[tnum][fnum,j,2],       -animations[tnum][fnum,parents[j],2]])
                     lines[count+1][j].set_3d_properties(
                         [ animations[tnum][fnum,j,1],        animations[tnum][fnum,parents[j],1]])
@@ -453,25 +462,34 @@ def aligned_plot(src, tgts, align, interval=8.33, H36 = False, repeat=True):
         for count in range(len(align[ii]), width):
             for j in range(len(parents)):
                 if parents[j] != -1:
+                    #lines[count+1][j].set_data(
+                    #    [ animations[0][ii,j,0]+offset, animations[0][ii,parents[j],0]+offset],
+                    #    [-animations[0][ii,j,2],       -animations[0][ii,parents[j],2]])
+                    #lines[count+1][j].set_3d_properties(
+                    #    [ animations[0][ii,j,1],        animations[0][ii,parents[j],1]])
                     lines[count+1][j].set_data([], [])
                     lines[count+1][j].set_3d_properties([])
-            
+           
+        print align[ii]
         #changed += lines
             
-        #if i == 3:
-        #    plt.pause(50)
+        if i + 1 == num_frame:
+            plt.pause(2)
         return None #changed
     
     #Writer = animation.writers['ffmpeg']
     #writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
 
     plt.tight_layout()
-    num_frames = np.arange(max([len(ai) for ai in animations]))
-    
+   
+    if output_video:
+        repeat = False
+
     ani = animation.FuncAnimation(fig, 
-        animate, num_frames,
+        animate, frame_ids,
         interval=interval, repeat=repeat)
     #global count
-    #ani.save('%s/videos/%d.mp4' % (sys.argv[1], count), writer=writer)
+    if output_video is not None:
+        ani.save('%s' % (output_video), writer=writer)
     #count += 1
     plt.show()

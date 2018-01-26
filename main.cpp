@@ -22,6 +22,6 @@ int main(int argc, char** argv){
     Float threshold = atof(argv[4]);
     cout << "learning rate=" << lambda << endl;
     cout << "threshold for LCS=" << threshold << endl;
-    GDSolver gdsolver = GDSolver(lambda, 100000, period, D, threshold, argv[5]);
+    GDSolver gdsolver = GDSolver(lambda, 100000, period, D, threshold, string(argv[5]));
     gdsolver.solve(traces);
 }

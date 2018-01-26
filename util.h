@@ -11,8 +11,23 @@ using namespace std;
 
 typedef float Float;
 typedef vector<Float> Point;
+class Matrix{
+    public:
+    Matrix(int n, int m){
+        this->n = n;
+        this->m = m;
+        entry = new Float[n*m];
+    }
+    ~Matrix(){
+        delete entry;
+    }
+    int n, m;
+    Float* entry;
+    
+};
 
 const int LINE_LEN = 100000000;
+
 
 inline void print_point(Point const& a, string comment){
     cerr << comment;
@@ -32,6 +47,14 @@ inline Point zero_point(int d){
         zero_point.push_back(0.0);
     }
     return zero_point;
+}
+
+Float dot(Point& a, Point& b){
+    Float ans = 0.0;
+    for (int i = 0; i < a.size(); i++){
+        ans += a[i] * b[i];
+    }
+    return ans;
 }
 
 inline Point operator + (Point const &a, Point const &b){
@@ -104,6 +127,14 @@ Float normsq(Point const &a){
         ans += a[i] * a[i];
     }
     return ans;
+}
+
+Float norm(Point const &a){
+    Float ans = 0.0;
+    for (int i = 0; i < a.size(); i++){
+        ans += a[i] * a[i];
+    }
+    return sqrt(ans);
 }
 
 Float distance(vector<Float> a, vector<Float> b){
@@ -195,6 +226,67 @@ void augment_trace(vector<vector<Point>>& traces, int n){
         }
         traces[i] = new_trace;
     }
+}
+
+inline Point project_onto_segment(Point& p, Point& a, Point& b){
+    Point ap = p - a;
+    Point ab = b - a;
+    Point ab_hat = ab / norm(ab);
+    Float dp = dot(ap, ab_hat);
+    if (dp <= 0.0){
+        return a;
+    }
+    if (dp >= norm(ab)){
+        return b;
+    }
+    return a + ab_hat * dp;
+}
+
+inline Point project(Point& p, vector<Point>& traj){
+    Float min_dist = 1e10;
+    Point ans;
+    for (int i = 0; i < traj.size()-1; i++){
+        Point proj = project_onto_segment(p, traj[i], traj[i+1]);
+        Float d = distance(proj, p);
+        if (d < min_dist){
+            min_dist = d;
+            ans = proj;
+        }
+    }
+    return ans;
+}
+
+inline string dir(string fullname){
+    bool absolute = (fullname.find("/") == 0);
+    vector<string> tokens = split(fullname, "/");
+    string ans = "";
+    if (absolute){
+        ans += "/";
+    }
+    for (int i = 0; i < tokens.size()-1; i++){
+        if (i != 0){
+            ans += "/";
+        }
+        ans += tokens[i];
+    }
+    return ans;
+}
+
+vector<string> read_filelist(string filename){
+    ifstream fin(filename, fstream::in);
+    vector<string> filelist;
+    char* line = new char[LINE_LEN];
+    while (!fin.eof()){
+        fin.getline(line, LINE_LEN);
+        string line_str(line);
+        if (line_str.size() < 2 && fin.eof()){
+            break;
+        }
+        filelist.push_back(line_str);
+    }
+    fin.close();
+    delete line;
+    return filelist;
 }
 
 #endif
