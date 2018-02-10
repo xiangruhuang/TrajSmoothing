@@ -31,10 +31,10 @@ traj2bvh:
 	python traj2bvh.py /home/xiangru/Projects/Qixing/TrajSmoothing/human/$(num).txt walk_smoothed_$(num)
 
 align-walk:
-	python align.py motion_list.txt videos/walk
+	python align.py motion_list.txt walk
 
 align-fight:
-	python align.py motion_list.txt videos/fight
+	python align.py motion_list.txt fight
 
 align-run:
 	python align.py motion_list.txt videos/run

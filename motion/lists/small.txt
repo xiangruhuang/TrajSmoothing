@@ -1,0 +1,1 @@
+/home/xiangru/Projects/Qixing/TrajSmoothing/motion/data/edinburgh/edinburgh_dmdb/cmu/02_01.bvh

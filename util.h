@@ -9,7 +9,7 @@
 
 using namespace std;
 
-typedef float Float;
+typedef double Float;
 typedef vector<Float> Point;
 class Matrix{
     public:
@@ -121,7 +121,7 @@ inline Point sqrt_point(Point const &a){
     return ans;
 }
 
-Float normsq(Point const &a){
+inline Float normsq(Point const &a){
     Float ans = 0.0;
     for (int i = 0; i < a.size(); i++){
         ans += a[i] * a[i];
@@ -129,7 +129,7 @@ Float normsq(Point const &a){
     return ans;
 }
 
-Float norm(Point const &a){
+inline Float norm(Point const &a){
     Float ans = 0.0;
     for (int i = 0; i < a.size(); i++){
         ans += a[i] * a[i];
@@ -137,7 +137,7 @@ Float norm(Point const &a){
     return sqrt(ans);
 }
 
-Float distance(vector<Float> a, vector<Float> b){
+inline Float distance(vector<Float> a, vector<Float> b){
     Float dist = 0.0;
     for (int i = 0; i < a.size(); i++){
         Float diff = a[i] - b[i];
@@ -146,7 +146,16 @@ Float distance(vector<Float> a, vector<Float> b){
     return dist;
 };
 
-Float distance(pair<Float, Float> a, pair<Float, Float> b){
+inline Float distance(Float* a, Float* b, int D){
+    Float dist = 0.0;
+    for (int i = 0; i < D; i++){
+        Float diff = a[i] - b[i];
+        dist += diff * diff;
+    }
+    return dist;
+};
+
+inline Float distance(pair<Float, Float> a, pair<Float, Float> b){
     Float diff1 = a.first - b.first, diff2 = a.second - b.second;
     Float dist = diff1 * diff1 + diff2 * diff2;
     return dist;
@@ -244,7 +253,7 @@ inline Point project_onto_segment(Point& p, Point& a, Point& b){
 
 inline Point project(Point& p, vector<Point>& traj){
     Float min_dist = 1e10;
-    Point ans;
+    Point ans = traj[0];
     for (int i = 0; i < traj.size()-1; i++){
         Point proj = project_onto_segment(p, traj[i], traj[i+1]);
         Float d = distance(proj, p);
@@ -288,6 +297,16 @@ vector<string> read_filelist(string filename){
     delete line;
     return filelist;
 }
+
+string replace(string a, string before, string after){
+    int m = a.find(before);
+    if (m < 0){
+        return a;
+    }
+    string ans = a.replace(m, before.size(), after);
+    return ans;
+}
+
 
 #endif
 

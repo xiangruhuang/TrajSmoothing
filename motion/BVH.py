@@ -144,8 +144,8 @@ def load(filename, start=None, end=None, order=None, world=False, bvh = False,
             fi = i - start if start else i
             if channels == 3:
                 try:
-                    positions[fi,0:1] = [0.0, 0.0, 0.0]
-                    #positions[fi,0:1] = data_block[0:3]
+                    #positions[fi,0:1] = [0.0, 0.0, 0.0]
+                    positions[fi,0:1] = data_block[0:3]
                     a1 =  data_block[3]
                     a2 =  data_block[4]
                     a3 =  data_block[5]
@@ -309,14 +309,24 @@ def joint_load(filename, src, org_rotations, aligned_ids, start=None, end=None, 
             N = len(parents)
             fi = i - start if start else i
             if channels == 3:
-                #positions[aligned_ids[fi],0:1] = data_block[:3]
+                positions[aligned_ids[fi],0:1] = data_block[:3]
                 a1 =  data_block[3]
                 a2 =  data_block[4]
                 a3 =  data_block[5]
+                #data_block[3:6] = rotations[aligned_ids[fi], 0:1]
                 #positions[fi,0:1] = data_block[0:3]
-                print len(aligned_ids), fi, data_block.shape, rotations.shape
-                print aligned_ids[fi]
-                rotations[aligned_ids[fi], : ] = data_block[3: ].reshape(N,3)
+                #print len(aligned_ids), fi, data_block.shape, rotations.shape
+                #print aligned_ids[fi]
+                #L = [1, 2, 3, 4, 5, 7, 8, 9, 10, 14, 15, 16, 18, 19, 20, 21, 22, 23,
+                #        ]+range(25, 31)
+                L = range(0, 31)
+                for p in L:
+                    rotations[aligned_ids[fi], p:p+1 ] = data_block[3+p*3:6+p*3 ].reshape(-1,3)
+
+                #rotations[aligned_ids[fi], 2:4 ] = data_block[9:15 ].reshape(-1,3)
+                #rotations[aligned_ids[fi], 5:11 ] = data_block[18:36 ].reshape(-1,3)
+                #rotations[aligned_ids[fi], 12:14 ] = data_block[39:45 ].reshape(-1,3)
+                #rotations[aligned_ids[fi], 15: ] = data_block[48: ].reshape(-1,3)
             elif channels == 6:
                 data_block = data_block.reshape(N,6)
                 positions[fi,:] = data_block[:,0:3]

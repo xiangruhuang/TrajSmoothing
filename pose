@@ -1,0 +1,16 @@
+JOINT LeftUpLeg
+JOINT LeftLeg
+JOINT LeftFoot
+JOINT RightUpLeg
+JOINT RightLeg
+JOINT RightFoot
+JOINT Spine
+JOINT Spine1
+JOINT Neck1
+JOINT Head
+JOINT LeftArm
+JOINT LeftForeArm
+JOINT LeftHand
+JOINT RightArm
+JOINT RightForeArm
+JOINT RightHand

@@ -76,11 +76,12 @@
 //		These are given below.
 //----------------------------------------------------------------------
 
-int				ANNkdDim;				// dimension of space
-ANNpoint		ANNkdQ;					// query point
-double			ANNkdMaxErr;			// max tolerable squared error
-ANNpointArray	ANNkdPts;				// the points
-ANNmin_k		*ANNkdPointMK;			// set of k closest points
+//int				ANNkdDim;				// dimension of space
+//ANNpoint		ANNkdQ;					// query point
+//double			ANNkdMaxErr;			// max tolerable squared error
+//ANNpointArray	ANNkdPts;				// the points
+//ANNmin_k		*ANNkdPointMK;			// set of k closest points
+
 
 //----------------------------------------------------------------------
 //	annkSearch - search for the k nearest neighbors
@@ -93,6 +94,12 @@ void ANNkd_tree::annkSearch(
 	ANNdistArray		dd,				// the approximate nearest neighbor
 	double				eps)			// the error bound
 {
+    int				ANNkdDim;				// dimension of space
+    ANNpoint		ANNkdQ;					// query point
+    double			ANNkdMaxErr;			// max tolerable squared error
+    ANNpointArray	ANNkdPts;				// the points
+    ANNmin_k		*ANNkdPointMK;			// set of k closest points
+
 
 	ANNkdDim = dim;						// copy arguments to static equivs
 	ANNkdQ = q;
@@ -102,13 +109,13 @@ void ANNkd_tree::annkSearch(
 	if (k > n_pts) {					// too many near neighbors?
 		annError("Requesting more near neighbors than data points", ANNabort);
 	}
-
+    
 	ANNkdMaxErr = ANN_POW(1.0 + eps);
 	ANN_FLOP(2)							// increment floating op count
 
-	ANNkdPointMK = new ANNmin_k(k);		// create set for closest k points
+	ANNkdPointMK = new ANNmin_k(k);	// create set for closest k points
 										// search starting at the root
-	root->ann_search(annBoxDistance(q, bnd_box_lo, bnd_box_hi, dim));
+	root->ann_search(annBoxDistance(q, bnd_box_lo, bnd_box_hi, dim), ANNkdDim, ANNkdQ, ANNkdMaxErr, ANNkdPts, ANNkdPointMK);
 
 	for (int i = 0; i < k; i++) {		// extract the k-th closest points
 		dd[i] = ANNkdPointMK->ith_smallest_key(i);
@@ -120,8 +127,10 @@ void ANNkd_tree::annkSearch(
 //----------------------------------------------------------------------
 //	kd_split::ann_search - search a splitting node
 //----------------------------------------------------------------------
+	
+void ANNkd_split::ann_search(ANNdist box_dist, int ANNkdDim, ANNpoint ANNkdQ, double ANNkdMaxErr, ANNpointArray ANNkdPts, ANNmin_k *ANNkdPointMK)
 
-void ANNkd_split::ann_search(ANNdist box_dist)
+//void ANNkd_split::ann_search(ANNdist box_dist)
 {
 										// check dist calc term condition
 	if (ANNmaxPtsVisited != 0 && ANNptsVisited > ANNmaxPtsVisited) return;
@@ -130,7 +139,7 @@ void ANNkd_split::ann_search(ANNdist box_dist)
 	ANNcoord cut_diff = ANNkdQ[cut_dim] - cut_val;
 
 	if (cut_diff < 0) {					// left of cutting plane
-		child[ANN_LO]->ann_search(box_dist);// visit closer child first
+		child[ANN_LO]->ann_search(box_dist, ANNkdDim, ANNkdQ, ANNkdMaxErr, ANNkdPts, ANNkdPointMK);// visit closer child first
 
 		ANNcoord box_diff = cd_bnds[ANN_LO] - ANNkdQ[cut_dim];
 		if (box_diff < 0)				// within bounds - ignore
@@ -141,11 +150,11 @@ void ANNkd_split::ann_search(ANNdist box_dist)
 
 										// visit further child if close enough
 		if (box_dist * ANNkdMaxErr < ANNkdPointMK->max_key())
-			child[ANN_HI]->ann_search(box_dist);
+			child[ANN_HI]->ann_search(box_dist, ANNkdDim, ANNkdQ, ANNkdMaxErr, ANNkdPts, ANNkdPointMK);
 
 	}
 	else {								// right of cutting plane
-		child[ANN_HI]->ann_search(box_dist);// visit closer child first
+		child[ANN_HI]->ann_search(box_dist, ANNkdDim, ANNkdQ, ANNkdMaxErr, ANNkdPts, ANNkdPointMK);// visit closer child first
 
 		ANNcoord box_diff = ANNkdQ[cut_dim] - cd_bnds[ANN_HI];
 		if (box_diff < 0)				// within bounds - ignore
@@ -156,7 +165,7 @@ void ANNkd_split::ann_search(ANNdist box_dist)
 
 										// visit further child if close enough
 		if (box_dist * ANNkdMaxErr < ANNkdPointMK->max_key())
-			child[ANN_LO]->ann_search(box_dist);
+			child[ANN_LO]->ann_search(box_dist, ANNkdDim, ANNkdQ, ANNkdMaxErr, ANNkdPts, ANNkdPointMK);
 
 	}
 	ANN_FLOP(10)						// increment floating ops
@@ -169,7 +178,7 @@ void ANNkd_split::ann_search(ANNdist box_dist)
 //		some fine tuning to replace indexing by pointer operations.
 //----------------------------------------------------------------------
 
-void ANNkd_leaf::ann_search(ANNdist box_dist)
+void ANNkd_leaf::ann_search(ANNdist box_dist, int ANNkdDim, ANNpoint ANNkdQ, double ANNkdMaxErr, ANNpointArray ANNkdPts, ANNmin_k *ANNkdPointMK)
 {
 	register ANNdist dist;				// distance to data point
 	register ANNcoord* pp;				// data coordinate pointer

@@ -32,7 +32,7 @@
 //----------------------------------------------------------------------
 
 #include "kd_tree.h"					// kd-tree declarations
-#include "bd_tree.h"					// bd-tree declarations
+//#include "bd_tree.h"					// bd-tree declarations
 
 using namespace std;					// make std:: available
 
@@ -156,16 +156,16 @@ void ANNkd_leaf::dump(					// dump a leaf node
 	}
 }
 
-void ANNbd_shrink::dump(				// dump a shrinking node
-		ostream &out)					// output stream
-{
-	out << "shrink " << n_bnds << "\n";
-	for (int j = 0; j < n_bnds; j++) {
-		out << bnds[j].cd << " " << bnds[j].cv << " " << bnds[j].sd << "\n";
-	}
-	child[ANN_IN]->dump(out);			// print in-child
-	child[ANN_OUT]->dump(out);			// print out-child
-}
+//void ANNbd_shrink::dump(				// dump a shrinking node
+//		ostream &out)					// output stream
+//{
+//	out << "shrink " << n_bnds << "\n";
+//	for (int j = 0; j < n_bnds; j++) {
+//		out << bnds[j].cd << " " << bnds[j].cv << " " << bnds[j].sd << "\n";
+//	}
+//	child[ANN_IN]->dump(out);			// print in-child
+//	child[ANN_OUT]->dump(out);			// print out-child
+//}
 
 //----------------------------------------------------------------------
 // Load kd-tree from dump file
@@ -212,33 +212,33 @@ ANNkd_tree::ANNkd_tree(					// build from dump file
 	root = the_root;							// set the root
 }
 
-ANNbd_tree::ANNbd_tree(					// build bd-tree from dump file
-	istream				&in) : ANNkd_tree()		// input stream for dump file
-{
-	int the_dim;								// local dimension
-	int the_n_pts;								// local number of points
-	int the_bkt_size;							// local number of points
-	ANNpoint the_bnd_box_lo;					// low bounding point
-	ANNpoint the_bnd_box_hi;					// high bounding point
-	ANNpointArray the_pts;						// point storage
-	ANNidxArray the_pidx;						// point index storage
-	ANNkd_ptr the_root;							// root of the tree
-
-	the_root = annReadDump(						// read the dump file
-		in,										// input stream
-		BD_TREE,								// expecting a bd-tree
-		the_pts,								// point array (returned)
-		the_pidx,								// point indices (returned)
-		the_dim, the_n_pts, the_bkt_size,		// basic tree info (returned)
-		the_bnd_box_lo, the_bnd_box_hi);		// bounding box info (returned)
-
-												// create a skeletal tree
-	SkeletonTree(the_n_pts, the_dim, the_bkt_size, the_pts, the_pidx);
-	bnd_box_lo = the_bnd_box_lo;
-	bnd_box_hi = the_bnd_box_hi;
-
-	root = the_root;							// set the root
-}
+//ANNbd_tree::ANNbd_tree(					// build bd-tree from dump file
+//	istream				&in) : ANNkd_tree()		// input stream for dump file
+//{
+//	int the_dim;								// local dimension
+//	int the_n_pts;								// local number of points
+//	int the_bkt_size;							// local number of points
+//	ANNpoint the_bnd_box_lo;					// low bounding point
+//	ANNpoint the_bnd_box_hi;					// high bounding point
+//	ANNpointArray the_pts;						// point storage
+//	ANNidxArray the_pidx;						// point index storage
+//	ANNkd_ptr the_root;							// root of the tree
+//
+//	the_root = annReadDump(						// read the dump file
+//		in,										// input stream
+//		BD_TREE,								// expecting a bd-tree
+//		the_pts,								// point array (returned)
+//		the_pidx,								// point indices (returned)
+//		the_dim, the_n_pts, the_bkt_size,		// basic tree info (returned)
+//		the_bnd_box_lo, the_bnd_box_hi);		// bounding box info (returned)
+//
+//												// create a skeletal tree
+//	SkeletonTree(the_n_pts, the_dim, the_bkt_size, the_pts, the_pidx);
+//	bnd_box_lo = the_bnd_box_lo;
+//	bnd_box_hi = the_bnd_box_hi;
+//
+//	root = the_root;							// set the root
+//}
 
 //----------------------------------------------------------------------
 //	annReadDump - read a dump file
@@ -419,23 +419,24 @@ static ANNkd_ptr annReadTree(
 	//	Read a shrinking node (bd-tree only)
 	//------------------------------------------------------------------
 	else if (strcmp(tag, "shrink") == 0) {		// shrinking node
-		if (tree_type != BD_TREE) {
-			annError("Shrinking node not allowed in kd-tree", ANNabort);
-		}
+		//if (tree_type != BD_TREE) {
+		//	annError("Shrinking node not allowed in kd-tree", ANNabort);
+		//}
 
-		in >> n_bnds;							// number of bounding sides
-												// allocate bounds array
-		ANNorthHSArray bds = new ANNorthHalfSpace[n_bnds];
-		for (int i = 0; i < n_bnds; i++) {
-			in >> cd >> cv >> sd;				// input bounding halfspace
-												// copy to array
-			bds[i] = ANNorthHalfSpace(cd, cv, sd);
-		}
-												// read inner and outer subtrees
-		ANNkd_ptr ic = annReadTree(in, tree_type, the_pidx, next_idx);
-		ANNkd_ptr oc = annReadTree(in, tree_type, the_pidx, next_idx);
-												// create new node and return
-		return new ANNbd_shrink(n_bnds, bds, ic, oc);
+		//in >> n_bnds;							// number of bounding sides
+		//										// allocate bounds array
+		//ANNorthHSArray bds = new ANNorthHalfSpace[n_bnds];
+		//for (int i = 0; i < n_bnds; i++) {
+		//	in >> cd >> cv >> sd;				// input bounding halfspace
+		//										// copy to array
+		//	bds[i] = ANNorthHalfSpace(cd, cv, sd);
+		//}
+		//										// read inner and outer subtrees
+		//ANNkd_ptr ic = annReadTree(in, tree_type, the_pidx, next_idx);
+		//ANNkd_ptr oc = annReadTree(in, tree_type, the_pidx, next_idx);
+		//										// create new node and return
+		//return new ANNbd_shrink(n_bnds, bds, ic, oc);
+        return NULL;
 	}
 	else {
 		annError("Illegal node type in dump file", ANNabort);
