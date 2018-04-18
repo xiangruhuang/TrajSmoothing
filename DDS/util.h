@@ -69,8 +69,8 @@ vector<vector<Point>> read_trace(string filename){
 
         assert(tokens.size() % 2 == 0);
         for (int i = 0; i < len; i++){
-            Float lat_i = stof(tokens[i*2 + 0]);
-            Float long_i = stof(tokens[i*2 + 1]);
+            Float lat_i = stod(tokens[i*2 + 0]);
+            Float long_i = stod(tokens[i*2 + 1]);
             Point new_point;
             new_point.push_back(lat_i);
             new_point.push_back(long_i);

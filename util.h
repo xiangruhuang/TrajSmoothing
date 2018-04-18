@@ -28,8 +28,17 @@ class Matrix{
 
 const int LINE_LEN = 100000000;
 
+inline double* to_double(Point& point){
+    int D = point.size();
+    double* ans = new double[D];
 
-inline void print_point(Point const& a, string comment){
+    for (int d = 0; d < D; d++){
+        ans[d] = point[d];
+    }
+    return ans;
+}
+
+inline void print_point(Point & a, string comment){
     cerr << comment;
     cerr << ":\t";
     for (int i = 0; i < a.size(); i++){
@@ -57,6 +66,22 @@ Float dot(Point& a, Point& b){
     return ans;
 }
 
+inline Point to_vector(int D, double* point){
+    Point ans;
+    for (int d = 0; d < D; d++){
+        ans.push_back(point[d]);
+    }
+    return ans;
+}
+
+inline double diffsq(double* a, double* b, int D){
+    Float ans = 0.0;
+    for (int i = 0; i < D; i++){
+        ans += (a[i] - b[i]) * (a[i] - b[i]);
+    }
+    return ans;
+}
+
 inline Point operator + (Point const &a, Point const &b){
     vector<Float> c;
     for (int i = 0; i < a.size(); i++){
@@ -74,6 +99,14 @@ inline Point operator + (Point const &a, Float const &c){
 }
 
 inline Point operator - (Point const &a, Point const &b){
+    Point c;
+    for (int i = 0; i < a.size(); i++){
+        c.push_back(a[i] - b[i]);
+    }
+    return c;
+}
+
+inline Point operator - (Point const &a, double* b){
     Point c;
     for (int i = 0; i < a.size(); i++){
         c.push_back(a[i] - b[i]);

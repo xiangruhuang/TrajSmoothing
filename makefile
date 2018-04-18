@@ -1,6 +1,6 @@
 all:
 	#g++ -o preprocess read.cpp -O3 -std=c++11
-	#g++ -o main main.cpp -O3 -std=c++11 -Wunused-result
+	#g++ -o main main.cpp -O3 -std=c++11 -Wunused-result -I /home/xiangru/Projects/Qixing/TrajSmoothing/DDS/ann/ann_1.1.2/include -L /home/xiangru/Projects/Qixing/TrajSmoothing/DDS/ann/ann_1.1.2/lib -lANN
 
 .PHONY: align
 align:
@@ -8,25 +8,46 @@ align:
 
 .PHONY: motion_smooth
 motion_smooth:
-	g++ -o motion_smooth motion_smooth.cpp -O3 -std=c++11 -fopenmp -Wunused-result -I /home/xiangru/Projects/Qixing/TrajSmoothing/DDS/ann/ann_1.1.2/include -L /home/xiangru/Projects/Qixing/TrajSmoothing/DDS/ann/ann_1.1.2/lib -lANN
+	g++ -g -o motion_smooth motion_smooth.cpp -O3 -std=c++11 -fopenmp -Wunused-result -I /home/xiangru/Projects/Qixing/TrajSmoothing/DDS/ann/ann_1.1.2/include -L /home/xiangru/Projects/Qixing/TrajSmoothing/DDS/ann/ann_1.1.2/lib -lANN
 
 .PHONY: knn
 knn:
 	g++ -o knn knn.cpp -O3 -std=c++11 -fopenmp -Wunused-result -I /home/xiangru/Projects/Qixing/TrajSmoothing/DDS/ann/ann_1.1.2/include -L /home/xiangru/Projects/Qixing/TrajSmoothing/DDS/ann/ann_1.1.2/lib -lANN
 
+lambda=1e-2
+K=5
+o=1
+solver=AM
 
+.PHONY:test
+test:
+	mkdir -p GPS/recover/$@_o$(o)_K$(K)
+	./motion_smooth -solver $(solver) -lr $(lambda) -o 0 -k 1 -D 2 -tol 1e-8 -method equal_dist GPS/$@/list.txt recover/$@_o$(o)_K$(K)
 
-run:
-	./main truncated_traj.txt
+delay=1
+dds_K=3
 
-.PHONY:synthetic
 synthetic:
-	./main synthetic/trajectories.txt 2 1e-3
+	mkdir -p GPS/recover/$@_o$(o)_K$(K)
+	./motion_smooth -interval 0.1 -c_align 10.0 -c_smooth 10 -c_reg 1.0 -tol 1e-3 -solver $(solver) -lr $(lambda) -o $(o) -k $(K) -D 2 -method interpolate GPS/$@/list.txt recover/$@_o$(o)_K$(K)
+	
+dds_synthetic:
+	mkdir -p GPS/recover/$@_delay$(delay)_K$(dds_K)
+	./dds GPS/synthetic/street.txt $(delay) $(dds_K) GPS/recover/$@_delay$(delay)_K$(dds_K)/dds
+
+dds_real:
+	mkdir -p GPS/recover/$@_delay$(delay)_K$(dds_K)
+	./dds GPS/real/fake $(delay) $(dds_K) GPS/recover/$@_delay$(delay)_K$(dds_K)/dds
+
+.PHONY:real
+real:
+	mkdir -p GPS/recover/$@_o$(o)_K$(K)
+	./motion_smooth -interval 0.001 -solver $(solver) -lr $(lambda) -o $(o) -k $(K) -c_align 10.0 -c_smooth 10.0 -c_reg 1.0 -D 2 -tol 1e-8 -method interpolate GPS/$@/list.txt recover/$@_o$(o)_K$(K)
+
+threshold=20.0
 
 motion_dir=/home/xiangru/Projects/Qixing/AnimationSequences/animationVideo/preprocess/walk_remove_odd/trajs.txt
 
-lambda=1e-4
-threshold=20.0
 #list=motion/motion_list.txt
 list=motion/lists/small.txt
 

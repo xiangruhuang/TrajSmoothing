@@ -7,8 +7,9 @@
 #include<algorithm>
 #include<unordered_map>
 #include<string>
-#include "Motion.h"
 #include "Graph.h"
+#include "Trace.h"
+#include "Params.h"
 
 using namespace std;
 // Objective function L(f):
@@ -140,12 +141,15 @@ class GDSolver{
         //    cout << avg_match/count << "/" << avg_len << endl; 
         //}
 
-        void solve_motion(Graph& graph, int max_iter, string output_folder){
-            vector<Motion>& motions = graph.motions;
+        void solve(Graph& graph, Params* params){
+            vector<Trace*>& motions = graph.traces;
+            int max_iter = params->max_iter;
+            string output_folder = params->output_folder;
+            bool is_motion = (params->D == 51);
             int N = motions.size();
             vector<vector<Point>> traces;
             for (int i = 0; i < N; i++){
-                traces.push_back(motions[i].rotations);
+                traces.push_back(motions[i]->traces);
             }
             int D = traces[0][0].size();
             if (shift){
@@ -177,9 +181,9 @@ class GDSolver{
                 print_point(std, "std");
             }
             
-            Float C_smooth = 100.0;
-            Float C_align = 1.0;
-            Float C_vanilla = 1.0;
+            Float C_smooth = params->C_smooth;
+            Float C_align = params->C_align;
+            Float C_vanilla = params->C_reg;
             //compute_correspondences(traces, false);
             vector<vector<Point>> recover = traces;
             vector<vector<Point>> grads;
@@ -218,7 +222,9 @@ class GDSolver{
                         assert(i == it->a.first);
                         int fi = it->a.second;
                         int j = it->b.first;
-                        int fj = it->b.first;
+                        int fj = it->b.second;
+                        //cerr << i << ", " << fi << ", " << j << ", " << fj << endl;
+                        //cerr << recover[i].size() << ", " << recover[j].size() << endl;
                         grad[fi] = grad[fi] + (recover[i][fi] - recover[j][fj]) * C_align * it->weight;
                     }
                     // vanilla
@@ -270,18 +276,18 @@ class GDSolver{
                         assert(i == it->a.first);
                         int fi = it->a.second;
                         int j = it->b.first;
-                        int fj = it->b.first;
+                        int fj = it->b.second;
                         #pragma omp atomic
                         energy_align += normsq(recover[i][fi] - recover[j][fj]) * C_align * it->weight * 0.5;
                     }
                 }
-                cout << "iter=" << iter;
-                cout << ", grad_l2=" << grad_l2;
-                cout << ", vanilla=" << energy_vanilla;
-                cout << ", smooth=" << energy_smooth;
-                cout << ", align=" << energy_align;
-                cout << ", energy=" << (energy_vanilla + energy_smooth + energy_align);
-                cout << endl;
+                cerr << "iter=" << iter;
+                cerr << ", grad_l2=" << grad_l2;
+                cerr << ", vanilla=" << energy_vanilla;
+                cerr << ", smooth=" << energy_smooth;
+                cerr << ", align=" << energy_align;
+                cerr << ", energy=" << (energy_vanilla + energy_smooth + energy_align);
+                cerr << endl;
                 iter++;
                 if (iter % 100 == 0){
                     if (shift){
@@ -292,13 +298,55 @@ class GDSolver{
                             }
                         }
                     }
-                    ofstream smooth_list("motion/smooth/smoothed_" + to_string(iter)+".txt");
-                    for (int i = 0; i < traces.size(); i++){
-                        motions[i].rotations = recover[i];
-                        motions[i].write_bvh(replace(motions[i].filename, "data", "smooth/"+to_string(iter)));
-                        smooth_list << replace(motions[i].filename, "data", "smooth/"+to_string(iter)) << endl;
+                    if (D != 2){
+                        string list_file_name;
+                        list_file_name = "motion/smooth/smoothed_" + to_string(iter)+".txt";
+                        ofstream smooth_list(list_file_name);
+
+                        for (int i = 0; i < traces.size(); i++){
+                            motions[i]->traces = recover[i];
+                            string filename_i;
+                            if (D != 2){
+                                filename_i = replace(motions[i]->filename, "data", "smooth/"+to_string(iter));
+                            } else {
+                                filename_i = replace(motions[i]->filename, "real", output_folder+"/"+to_string(iter));
+                            }
+                            motions[i]->write_data(filename_i);
+                            smooth_list << filename_i << endl;
+                            //replace(motions[i].filename, "data", "smooth/"+to_string(iter)) << endl;
+                        }
+                        smooth_list.close();
+                    } else {
+                        string file_name;
+                        file_name = "GPS/" + output_folder + "/GPS_"+to_string(iter)+".txt";
+                        string directory = "/home/xiangru/Projects/Qixing/TrajSmoothing/" + dir(file_name);
+                        cerr << "\tdumping to " << directory << endl;
+                        string command = "mkdir -p " + directory;
+                        system(command.c_str());
+                        cerr << " directory created" << endl;
+                        ofstream fout(file_name, fstream::out);
+                        for (int i = 0; i < traces.size(); i++){
+                            motions[i]->traces = recover[i];
+                            //motions[i]->write_data(file_name, true);
+                            for (int j = 0; j < motions[i]->traces.size(); j++){
+                                if (j != 0){
+                                    fout << " ";
+                                }
+                                Point r = motions[i]->traces[j];
+                                if (motions[i]->centered){
+                                    r = (r * motions[i]->std) + motions[i]->mean_pose;
+                                }
+                                for (int d = 0; d < D; d++){
+                                    if (d != 0){
+                                        fout << " ";
+                                    }
+                                    fout << r[d];
+                                }
+                            }
+                            fout << endl;
+                        }
+                        fout.close();
                     }
-                    smooth_list.close();
                     if (shift){
                         for (int i = 0; i < N; i++){
                             for (int t = 0; t < traces[i].size(); t++){
@@ -318,8 +366,10 @@ class GDSolver{
                 }
             }
         }
-        //void solve(vector<vector<Point>>& traces){
-        //    N = traces.size();
+
+        //void solve(vector<vector<Point>>& traces, int max_iter, string output_folder){
+        //    int N = traces.size();
+        //    int D = traces[0][0].size();
         //    mean = zero_point(D);
         //    Float count = 0;
         //    for (int i = 0; i < N; i++){
@@ -415,9 +465,6 @@ class GDSolver{
         //            //cout << ((nonzero * 1.0) / T) << endl;
         //            // vanilla
         //            for (int j = 0; j < traces[i].size(); j++){
-        //                if (j % (period + 1) != 0){
-        //                    continue;
-        //                }
         //                grad[j] = grad[j] + (recover[i][j] - traces[i][j]) * C_vanilla;
         //            }
         //            //Update
@@ -432,9 +479,6 @@ class GDSolver{
         //        Float energy_vanilla = 0.0;
         //        for (int i = 0; i < N; i++){
         //            for (int j = 0; j < traces[i].size(); j++){
-        //                if (j % (period + 1) != 0){
-        //                    continue;
-        //                }
         //                energy_vanilla += normsq(traces[i][j] - recover[i][j]) * C_vanilla * 0.5;
         //            }
         //        }

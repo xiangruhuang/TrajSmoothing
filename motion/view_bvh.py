@@ -26,5 +26,5 @@ if len(sys.argv) >= 4:
     end = int(sys.argv[3])
     animation_plot([database[0][start:end+1]], H36=False, repeat=True)
 else:
-    animation_plot([database[0]], H36=False, repeat=True)
+    animation_plot([database[0]], H36=False, repeat=False)
 
