@@ -23,7 +23,7 @@ lambda=1e-2
 K=10
 o=3
 solver=AM
-c_reg=1e-3
+c_reg=0.1
 c_smooth=1e-10
 c_align=1.0
 interval=0.1
@@ -53,7 +53,7 @@ dds_real:
 .PHONY:real
 real:
 	mkdir -p GPS/recover/$@/$@_o$(o)_K$(K)_calign$(c_align)_csmooth$(c_smooth)_creg$(c_reg)_interval$(interval)
-	./motion_smooth -sigma 0.0003 -interval $(interval) -solver $(solver) -lr $(lambda) -o $(o) -k $(K) -c_align $(c_align) -c_smooth $(c_smooth) -c_reg $(c_reg) -D 2 -tol 1e-3 -method shortest_path GPS/$@/list.txt recover/$@/$@_o$(o)_K$(K)_calign$(c_align)_csmooth$(c_smooth)_creg$(c_reg)_interval$(interval)
+	./motion_smooth -sigma 0.0003 -interval 0.0005 -solver $(solver) -lr $(lambda) -o $(o) -k $(K) -c_align $(c_align) -c_smooth $(c_smooth) -c_reg $(c_reg) -D 2 -tol 1e-3 -method shortest_path GPS/$@/list.txt recover/$@/$@_o$(o)_K$(K)_calign$(c_align)_csmooth$(c_smooth)_creg$(c_reg)_interval$(interval)
 
 threshold=20.0
 

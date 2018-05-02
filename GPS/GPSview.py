@@ -16,6 +16,7 @@ maxy = -1e10
 miny = 1e10
 name_concat = ''
 draw = []
+drawlines = []
 for input_file in input_files[1:]:
     if input_file.startswith('-'):
         input_file = input_file[1:]
@@ -44,6 +45,8 @@ for input_file in input_files[1:]:
             c = 'k'
             for xi, yi in zip(x, y):
                 draw.append([xi, yi])
+            drawlines.append(x)
+            drawlines.append(y)
             #if method == 'scatter':
             #    plt.scatter(x, y, s=0.02, color=c)
             #else:
@@ -52,9 +55,9 @@ for input_file in input_files[1:]:
 
 draw = np.array(draw)
 if method == 'scatter':
-    plt.scatter(draw[:, 0], draw[:, 1], s=0.02, color=c)
+    plt.scatter(draw[:, 0], draw[:, 1], s=0.2, color=c)
 else:
-    plt.plot(draw[:, 0], draw[:, 1], color=c, markersize=0.02, linewidth=0.01)
+    plt.plot(color=c, markersize=0.02, linewidth=0.01, *drawlines)
 
 plt.xlim(minx, maxx)
 plt.ylim(miny, maxy)

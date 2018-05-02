@@ -179,7 +179,7 @@ class Graph{
             cerr << traces.size() << endl;
             cerr << "interpolating" << endl;
             
-            vector<vector<pair<Float, int>>> adj = adjacency_l2(10, all_point->knn, 1e-2);
+            vector<vector<pair<Float, int>>> adj = adjacency(params->K, all_point->knn, params->radius);
             #pragma omp parallel for
             for (int i = 0; i < traces.size(); i++){
                 cerr << ".";

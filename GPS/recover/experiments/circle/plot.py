@@ -11,6 +11,9 @@ method = 'scatter'
 if 'graph' in input_file:
     method = 'plot'
 
+if 'raw_points' in input_file:
+    method = 'plot'
+
 #if len(sys.argv) > 2 and sys.argv[2] == 'zoom':
 #    zoom = True
 #else:
@@ -74,16 +77,18 @@ if input_file == 'ours_graph' or input_file == 'dds_graph':
             #ax.arrow(pa[0], pa[1], pb[0]-pa[0], pb[1]-pa[1], linewidth=scale*2.0,
             #        width=scale, color=c, head_width=scale*3.0)
             #ax.plot(x, y, color=c)
-            if zoom:
-                axins.arrow(pa[0], pa[1], pb[0]-pa[0], pb[1]-pa[1],
-                        linewidth=scale,
-                    width=scale, color=c)
-                
-            draw.append(x)
-            draw.append(y)
+            if a % 10 == 0:
+                ax.arrow(pa[0], pa[1], pb[0]-pa[0], pb[1]-pa[1],
+                        linewidth=scale, width=scale, color=c)
+                if zoom:
+                    axins.arrow(pa[0], pa[1], pb[0]-pa[0], pb[1]-pa[1],
+                            linewidth=3e-4, width=3e-4, color=c)
+            else:
+                draw.append(x)
+                draw.append(y)
     ax.plot(color=c, linewidth=1.0, *draw)
-    #if zoom:
-    #    axins.plot(color=c, linewidth=1.0, *draw)
+    if zoom:
+        axins.plot(color=c, linewidth=1.0, *draw)
     print minx, maxx, miny, maxy
     #ax.axis('equal')
     #axins.axis('equal')

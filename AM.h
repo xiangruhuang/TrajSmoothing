@@ -391,6 +391,12 @@ class AMSolver{
                         //ofstream fout(file_name, fstream::out);
                         //fout.precision(10);
                         for (int i = 0; i < traces.size(); i++){
+                            //vector<Point> ri;
+                            //for (int ttt = 0; ttt < recover[i].size(); ttt++){
+                            //    if (distance(recover[i][ttt], traces[i][ttt]) < 1e-3){
+                            //        ri.push_back(recover[i][ttt]);
+                            //    }
+                            //}
                             motions[i]->traces = recover[i];
                             motions[i]->write_data(file_name, true);
                             //for (int j = 0; j < motions[i]->traces.size(); j++){

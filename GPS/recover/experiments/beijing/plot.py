@@ -5,10 +5,29 @@ import matplotlib.cm as cm
 from mpl_toolkits.axes_grid1.inset_locator import mark_inset
 from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes
 
+def filter(minx, maxx, miny, maxy, x, y):
+    new_x = []
+    new_y = []
+    flag = False
+    for xi, yi in zip(x, y):
+        if (xi < minx or xi > maxx):
+            continue
+        if (yi < miny or yi > maxy):
+            continue
+        flag = True
+        break
+    if flag:
+        return x, y
+    else:
+        return new_x, new_y
+
 input_file = sys.argv[1]
 output_file = sys.argv[2]
 method = 'scatter'
 if 'graph' in input_file:
+    method = 'plot'
+
+if 'raw_points' in input_file:
     method = 'plot'
 
 #if len(sys.argv) > 2 and sys.argv[2] == 'zoom':
@@ -17,7 +36,22 @@ if 'graph' in input_file:
 #    zoom = False
 
 zoom = True
-    
+
+if zoom:
+    if 'graph' in input_file:
+        zoom_maxx = 116.2870
+        zoom_minx = 116.2865
+        zoom_maxy = 39.9981
+        zoom_miny = 39.9976
+    else:
+        #zoom_maxx = 116.2865
+        #zoom_minx = 116.2815
+        #zoom_maxy = 39.998
+        #zoom_miny = 39.995
+        zoom_maxx = 116.2872
+        zoom_minx = 116.2860
+        zoom_maxy = 39.9985
+        zoom_miny = 39.9973
 
 print 'Going to %s file: %s' % (method, input_file)
 
@@ -29,12 +63,38 @@ else:
 
 p2w = {}
 
+zoomlines =[]
+if 'dds_points' in input_file:
+    """ load dds_edges"""
+    with open('dds_edges', 'r') as fin:
+        lines = fin.readlines()
+        for line in lines:
+            tokens = [float(token) for token in line.strip().split(' ')]
+            x = tokens[0::2]
+            y = tokens[1::2]
+            zoomlines.append(x)
+            zoomlines.append(y)
+
+if 'ours_points' in input_file:
+    """ load ours_edges"""
+    zoomlines =[]
+    with open('ours_edges', 'r') as fin:
+        lines = fin.readlines()
+        for line in lines:
+            tokens = [float(token) for token in line.strip().split(' ')]
+            x = tokens[0::2]
+            y = tokens[1::2]
+            zoomlines.append(x)
+            zoomlines.append(y)
+
 fig, ax = plt.subplots(figsize=(15,15))
 if zoom:
     if 'graph' in input_file:
         axins = zoomed_inset_axes(ax, 24, loc=1)
     else:
-        axins = zoomed_inset_axes(ax, 3.1, loc=1)
+        axins = zoomed_inset_axes(ax, 10, loc=1)
+    for axis in ['top','bottom','left','right']:
+        axins.spines[axis].set_linewidth(3)
 
 if ('ours_graph' in input_file) or ('dds_graph' in input_file):
     maxx = -1e10
@@ -42,7 +102,7 @@ if ('ours_graph' in input_file) or ('dds_graph' in input_file):
     maxy = -1e10
     miny = 1e10
     draw = []
-    scale = 3e-7
+    scale = 1e-6
     with open(input_file, 'r') as fin:
         lines = fin.readlines()[1:]
         num_point = 0
@@ -58,10 +118,10 @@ if ('ours_graph' in input_file) or ('dds_graph' in input_file):
             points.append(p)
         points = np.array(points)
         print points.shape
-        ax.scatter(points[:, 0], points[:, 1], marker='o', s=2, color='k',
+        ax.scatter(points[:, 0], points[:, 1], marker='o', s=2, color='r',
                 facecolor='none')
         if zoom:
-            axins.scatter(points[:, 0], points[:, 1], marker='o', s=2, color='k',
+            axins.scatter(points[:, 0], points[:, 1], marker='o', s=2, color='r',
                     facecolor='none')
         
         """ Edges: """
@@ -88,7 +148,7 @@ if ('ours_graph' in input_file) or ('dds_graph' in input_file):
             maxy = max(maxy, max(y))
             miny = min(miny, min(y))
             
-            c = 'k'
+            c = 'r'
             if a % 3 == 0:
                 ax.arrow(pa[0], pa[1], pb[0]-pa[0], pb[1]-pa[1], color=c,
                         linewidth=scale, width=scale)
@@ -96,9 +156,9 @@ if ('ours_graph' in input_file) or ('dds_graph' in input_file):
                     axins.arrow(pa[0], pa[1], pb[0]-pa[0], pb[1]-pa[1], color=c,
                             linewidth=scale, width=scale)
             else:
-                ax.plot(x, y, color=c, linewidth=0.1)
+                ax.plot(x, y, color=c, linewidth=0.5)
                 if zoom:
-                    axins.plot(x, y, color=c, linewidth=0.1)
+                    axins.plot(x, y, color=c, linewidth=2.0)
             
     #ax.plot(color=c, linewidth=scale, *draw)
     #ax.arrow(color=c, linewidth=1.0, *draw)
@@ -120,12 +180,15 @@ if ('ours_graph' in input_file) or ('dds_graph' in input_file):
     #plt.show()
     #plt.savefig(output_file) 
 else:
-    if input_file == 'raw_graph':
-        lw = 3.0
+    if 'raw_points' in input_file:
+        lw = 5e-1
+        ms = 0.2
     else:
-        lw = 0.1
-    ms = 0.2
+        lw = 1e-2
+        ms = 0.2
     draw = []
+    drawx = []
+    drawy = []
     if method == 'scatter':
         drawx = []
         drawy = []
@@ -144,24 +207,38 @@ else:
             y = tokens[1::2]
             maxy = max(maxy, max(y))
             miny = min(miny, min(y))
-            c = 'k'
+            c = 'r'
             if method == 'scatter':
                 #plt.scatter(x, y, color=c, s=0.5)
                 drawx = drawx + list(x)
                 drawy = drawy + list(y)
             else:
-                draw.append(x)
-                draw.append(y)
+                #if count % 5 == 0:
+                #    ax.arrow(x[0], y[0], x[1]-x[0], y[1]- y[0], lw=lw, width=lw,
+                #            color='k')
+                #    if zoom:
+                #        axins.arrow(x[0], y[0], x[1]-x[0], y[1]- y[0], lw=lw,
+                #                width=lw, color='k')
+                #else:
+                drawx = drawx + list(x)
+                drawy = drawy + list(y)
+                #if zoom:
+                #x, y = filter(zoom_minx, zoom_maxx, zoom_miny, zoom_maxy, x, y)
+                if count % 100 == 0:
+                    draw.append(x)
+                    draw.append(y)
                 #plt.plot(x, y, color=c, marker='.', markersize=0.2, linewidth=lw)
     if method == 'scatter':
-        ax.scatter(drawx, drawy, color='k', s=0.5)
+        ax.scatter(drawx, drawy, color='r', s=0.5)
         if zoom:
-            axins.scatter(drawx, drawy, color='k', s=0.5)
+            axins.scatter(drawx, drawy, color='r', s=0.5)
+            if len(zoomlines) > 0:
+                axins.plot(lw=lw, color='r', *zoomlines)
     else:
+        ax.plot(linewidth=lw, markersize=ms, color='r', *draw)
         #ax.plot(linewidth=lw, markersize=ms, color='k', *draw)
-        ax.arrow(linewidth=lw, markersize=ms, color='b', *draw)
         if zoom:
-            axins.plot(linewidth=lw, markersize=ms, color='k', *draw)
+            axins.plot(linewidth=lw, markersize=ms, color='r', *draw)
     #print minx, maxx, miny, maxy
     #plt.xticks([], visible=False, fontsize=0.01)
     #plt.yticks([], visible=False, fontsize=0.01)
@@ -179,13 +256,13 @@ ax.set_ylim([miny, maxy])
 
 if zoom:
     if 'graph' in input_file:
-        axins.set_xlim([116.2865, 116.2870])
-        axins.set_ylim([39.9976, 39.9981])
-        mark_inset(ax, axins, loc1=4, loc2=2, fc="none", ec="0.0")
+        axins.set_xlim([zoom_minx, zoom_maxx])
+        axins.set_ylim([zoom_miny, zoom_maxy])
+        mark_inset(ax, axins, loc1=4, loc2=2, fc="none", ec="0.0", lw=2)
     else:
-        axins.set_xlim([116.2815, 116.2865])
-        axins.set_ylim([39.995, 39.998])
-        mark_inset(ax, axins, loc1=4, loc2=2, fc="none", ec="0.0")
+        axins.set_xlim([zoom_minx, zoom_maxx])
+        axins.set_ylim([zoom_miny, zoom_maxy])
+        mark_inset(ax, axins, loc1=4, loc2=2, fc="none", ec="0.0", lw=2)
 
 plt.xlabel('x', fontsize=0.01)
 plt.ylabel('y', fontsize=0.01)
