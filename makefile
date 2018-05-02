@@ -1,5 +1,5 @@
 all:
-	#g++ -o preprocess read.cpp -O3 -std=c++11
+	g++ -o preprocess read.cpp -O3 -std=c++11
 	#g++ -o main main.cpp -O3 -std=c++11 -Wunused-result -I /home/xiangru/Projects/Qixing/TrajSmoothing/DDS/ann/ann_1.1.2/include -L /home/xiangru/Projects/Qixing/TrajSmoothing/DDS/ann/ann_1.1.2/lib -lANN
 
 .PHONY: align
@@ -10,14 +10,24 @@ align:
 motion_smooth:
 	g++ -g -o motion_smooth motion_smooth.cpp -O3 -std=c++11 -fopenmp -Wunused-result -I /home/xiangru/Projects/Qixing/TrajSmoothing/DDS/ann/ann_1.1.2/include -L /home/xiangru/Projects/Qixing/TrajSmoothing/DDS/ann/ann_1.1.2/lib -lANN
 
+.PHONY: recover
+recover:
+	g++ -g -o recover recover.cpp -O3 -std=c++11 -fopenmp -Wunused-result -I /home/xiangru/Projects/Qixing/TrajSmoothing/DDS/ann/ann_1.1.2/include -L /home/xiangru/Projects/Qixing/TrajSmoothing/DDS/ann/ann_1.1.2/lib -lANN
+	cp recover GPS/recover/
+
 .PHONY: knn
 knn:
 	g++ -o knn knn.cpp -O3 -std=c++11 -fopenmp -Wunused-result -I /home/xiangru/Projects/Qixing/TrajSmoothing/DDS/ann/ann_1.1.2/include -L /home/xiangru/Projects/Qixing/TrajSmoothing/DDS/ann/ann_1.1.2/lib -lANN
 
 lambda=1e-2
-K=5
-o=1
+K=10
+o=3
 solver=AM
+c_reg=1e-3
+c_smooth=1e-10
+c_align=1.0
+interval=0.1
+rad=0.01
 
 .PHONY:test
 test:
@@ -25,24 +35,25 @@ test:
 	./motion_smooth -solver $(solver) -lr $(lambda) -o 0 -k 1 -D 2 -tol 1e-8 -method equal_dist GPS/$@/list.txt recover/$@_o$(o)_K$(K)
 
 delay=1
-dds_K=3
+dds_K=50
 
-synthetic:
-	mkdir -p GPS/recover/$@_o$(o)_K$(K)
-	./motion_smooth -interval 0.1 -c_align 10.0 -c_smooth 10 -c_reg 1.0 -tol 1e-3 -solver $(solver) -lr $(lambda) -o $(o) -k $(K) -D 2 -method interpolate GPS/$@/list.txt recover/$@_o$(o)_K$(K)
+synthetic/circle:
+	mkdir -p GPS/recover/$@/synthetic_o$(o)_radius$(rad)_calign$(c_align)_csmooth$(c_smooth)_creg$(c_reg)_interval$(interval)
+	./motion_smooth -radius $(rad) -sigma 0.05 -interval 0.1 -c_align $(c_align) -c_smooth $(c_smooth) -c_reg $(c_reg) -tol 1e-5 -solver $(solver) -lr $(lambda) -o $(o) -k $(K) -D 2 -method shortest_path GPS/synthetic/list.txt recover/$@/synthetic_o$(o)_radius$(rad)_calign$(c_align)_csmooth$(c_smooth)_creg$(c_reg)_interval$(interval)
+
 	
-dds_synthetic:
-	mkdir -p GPS/recover/$@_delay$(delay)_K$(dds_K)
-	./dds GPS/synthetic/street.txt $(delay) $(dds_K) GPS/recover/$@_delay$(delay)_K$(dds_K)/dds
+dds_synthetic/circle:
+	mkdir -p GPS/recover/synthetic/circle/synthetic_delay$(delay)_K$(dds_K)
+	./dds GPS/synthetic/circle.txt $(delay) $(dds_K) GPS/recover/synthetic/circle/synthetic_delay$(delay)_K$(dds_K)/dds_circle
 
 dds_real:
-	mkdir -p GPS/recover/$@_delay$(delay)_K$(dds_K)
-	./dds GPS/real/fake $(delay) $(dds_K) GPS/recover/$@_delay$(delay)_K$(dds_K)/dds
+	mkdir -p GPS/recover/real/$@_delay$(delay)_K$(dds_K)
+	./dds GPS/real/real.txt $(delay) $(dds_K) GPS/recover/real/$@_delay$(delay)_K$(dds_K)/dds
 
 .PHONY:real
 real:
-	mkdir -p GPS/recover/$@_o$(o)_K$(K)
-	./motion_smooth -interval 0.001 -solver $(solver) -lr $(lambda) -o $(o) -k $(K) -c_align 10.0 -c_smooth 10.0 -c_reg 1.0 -D 2 -tol 1e-8 -method interpolate GPS/$@/list.txt recover/$@_o$(o)_K$(K)
+	mkdir -p GPS/recover/$@/$@_o$(o)_K$(K)_calign$(c_align)_csmooth$(c_smooth)_creg$(c_reg)_interval$(interval)
+	./motion_smooth -sigma 0.0003 -interval $(interval) -solver $(solver) -lr $(lambda) -o $(o) -k $(K) -c_align $(c_align) -c_smooth $(c_smooth) -c_reg $(c_reg) -D 2 -tol 1e-3 -method shortest_path GPS/$@/list.txt recover/$@/$@_o$(o)_K$(K)_calign$(c_align)_csmooth$(c_smooth)_creg$(c_reg)_interval$(interval)
 
 threshold=20.0
 

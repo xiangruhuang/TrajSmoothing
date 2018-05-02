@@ -2,10 +2,14 @@ from util import *
 
 work_file = 'truncated_traj.txt'
 
-xmin = 116.0
+#xmin = 116.0
+#xmax = 116.4
+#ymin = 39.0
+#ymax = 40.2
+xmin = 116.2
 xmax = 116.4
 ymin = 39.0
-ymax = 40.2
+ymax = 39.6
 n = 7900
 
 print 'filtering with window [%f, %f] X [%f, %f]' % (xmin, xmax, ymin, ymax)

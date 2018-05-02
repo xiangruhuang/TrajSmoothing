@@ -66,7 +66,8 @@ int main(int argc, char** agrv){
     vector<pair<double, pair<double, double>>> traj; // <time, <LAT, LONG>>
 
     ofstream fout;
-    fout.open("real/trajectories.txt", fstream::out);
+    fout.open("GPS/real/trajectories.txt", fstream::out);
+    fout.precision(15);
     for (int i = 1; i <= 29; i++){
         ifstream fin;
         string prefix = "data/output_05";

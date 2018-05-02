@@ -149,9 +149,10 @@ int main(int argc, char** argv){
     for (int iter = 0; iter < 100; iter++){ 
         vector<vector<Point>> projected_traces = smoothing(traces, delay, K);
         string name(argv[4]);
-        name = name + "_iter" + to_string(iter) + ".out";
+        name = name + "_iter" + to_string(iter) + ".txt";
         //cerr << "printing to " << name << "...";
         ofstream fout(name, fstream::out);
+        fout.precision(15);
         for (int i = 0; i < projected_traces.size(); i++){
             for (int j = 0; j < projected_traces[i].size(); j++){
                 if (j != 0){

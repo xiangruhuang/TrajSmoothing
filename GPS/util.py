@@ -10,6 +10,8 @@ import numpy as np
 #ymin= 39.6
 #ymax = 40.2
 
+repeat = 300
+
 def plot_from_file(input_file, output_file=None):
 
     with open(input_file, 'r') as fin:
@@ -137,8 +139,9 @@ def truncate_traj(input_file, output_file, xmin, xmax, ymin, ymax):
             token = line.strip().split(' ')
             print('%d/%d' % (count, total_count))
             
-            x = token[0::2]
-            y = token[1::2]
+            x = token[2::3]
+            y = token[1::3]
+            assert len(token) > 2
             x = [float(x_i) for x_i in x]
             y = [float(y_i) for y_i in y]
             
@@ -163,7 +166,5 @@ def truncate_traj(input_file, output_file, xmin, xmax, ymin, ymax):
                     worky = []
             plt.xlim(xmin, xmax)
             plt.ylim(ymin, ymax)
-            if plot_count >= 10000:
-                break
             
         plt.show()

@@ -24,6 +24,7 @@ class AMSolver{
         AMSolver(Float _lambda){
             this->learning_rate = _lambda;
             iter = 0;
+            traces.clear();
         }
 
         void shift(){
@@ -77,13 +78,19 @@ class AMSolver{
             mean = graph.mean_pose;
             std = graph.std;
             
+
+
             int N = graph.traces.size();
-            traces.clear();
             recover.clear();
             vector<Trace*>& motions = graph.traces;
             for (int i = 0; i < N; i++){
-                traces.push_back(motions[i]->traces);
                 recover.push_back(motions[i]->traces);
+            }
+            if (traces.size() == 0){
+                traces.clear();
+                for (int i = 0; i < N; i++){
+                    traces.push_back(motions[i]->traces);
+                }
             }
             int D = traces[0][0].size();
 
@@ -92,6 +99,26 @@ class AMSolver{
                 indices.push_back(i);
             }
             vector<vector<Match>>& matchings = graph.matchings_per_motion;
+            vector<vector<Float>> reg_weight;
+            for (int i = 0; i < N; i++){
+                vector<Float> reg_weight_i;
+                for (int j = 0; j < recover[i].size(); j++){
+                    reg_weight_i.push_back(0.0);
+                }
+                reg_weight.push_back(reg_weight_i);
+            }
+
+            for (int I = 0; I < N; I++){
+                vector<Match> next;
+                for (vector<Match>::iterator it = matchings[I].begin(); it != matchings[I].end(); it++){
+                    assert(I == it->a.first);
+                    int fi = it->a.second;
+                    int J = it->b.first;
+                    int fj = it->b.second;
+                    reg_weight[I][fi] += it->weight;
+                }
+                
+            }
             
             //vector<vector<int>> adj;
             //bool* visit = new bool[N];
@@ -127,7 +154,7 @@ class AMSolver{
             //omp_init_lock(&global); 
             //
             //cerr << "locks initialized" << endl;
-
+            Float max_dist = 1e10;
             Float last_energy = 1e100;
             while (iter < max_iter){
                 random_shuffle(indices.begin(), indices.end());
@@ -198,8 +225,8 @@ class AMSolver{
                    
                     #pragma omp parallel for
                     for (int i = 0; i < T; i++){
-                        a[i] += C_reg;
-                        v[i] = v[i] + trace[i] * C_reg;
+                        a[i] += C_reg * reg_weight[I][i];
+                        v[i] = v[i] + trace[i] * C_reg * reg_weight[I][i];
                     }
 
                     for (vector<Match>::iterator it = matchings[I].begin(); it != matchings[I].end(); it++){
@@ -211,6 +238,7 @@ class AMSolver{
                         //    cerr << I << " " << fi << " --- " << J << " " << fj << endl;
                         //}
                         a[fi] += C_align * it->weight;
+                        
                         v[fi] = v[fi] + recover[J][fj] * (C_align * it->weight);
                     }
                     
@@ -222,7 +250,7 @@ class AMSolver{
                         a[i-1] += C_smooth;
                     }
 
-                    //#pragma omp parallel for
+                    #pragma omp parallel for
                     for (int i = 0; i < T; i++){
                         v[i] = v[i] / C_smooth;
                         a[i] = a[i] / C_smooth;
@@ -291,7 +319,7 @@ class AMSolver{
                     int j;
                     for (j = 0; j < traces[i].size(); j++){
                         //#pragma omp atomic
-                        energy_vanilla += normsq(traces[i][j] - recover[i][j]) * C_reg * 0.5;
+                        energy_vanilla += normsq(traces[i][j] - recover[i][j]) * C_reg * reg_weight[i][j] * 0.5;
                     }
                 }
                 //Smooth Part
@@ -308,8 +336,10 @@ class AMSolver{
                 //Align Part
                 Float energy_align = 0.0;
                 //#pragma omp parallel for
+                int num_edge = 0;
                 for (int i = 0; i < N; i++){
                     vector<Match>::iterator it;
+                    num_edge += matchings[i].size();
                     for (it = matchings[i].begin(); it != matchings[i].end(); it++){
                         assert(i == it->a.first);
                         int fi = it->a.second;
@@ -324,12 +354,13 @@ class AMSolver{
                 cout << ", vanilla=" << energy_vanilla;
                 cout << ", smooth=" << energy_smooth;
                 cout << ", align=" << energy_align;
+                cout << ", #edges=" << num_edge;
                 cout << ", energy=" << (energy_vanilla + energy_smooth + energy_align);
                 cout << endl;
 
                 iter++;
                 Float delta = (last_energy - (energy_vanilla + energy_smooth + energy_align))/last_energy;
-                if ((iter % 10 == 0) || (delta < params->tol)){
+                if ((iter % 1 == 0) || (delta < params->tol)){
                     if (D != 2){
                         string list_file_name;
 
@@ -355,30 +386,31 @@ class AMSolver{
                         string directory = "/home/xiangru/Projects/Qixing/TrajSmoothing/" + dir(file_name);
                         cerr << "\tdumping to " << directory << endl;
                         string command = "mkdir -p " + directory;
-                        system(command.c_str());
+                        int e = system(command.c_str());
                         cerr << " directory created" << endl;
-                        ofstream fout(file_name, fstream::out);
+                        //ofstream fout(file_name, fstream::out);
+                        //fout.precision(10);
                         for (int i = 0; i < traces.size(); i++){
                             motions[i]->traces = recover[i];
-                            //motions[i]->write_data(file_name, true);
-                            for (int j = 0; j < motions[i]->traces.size(); j++){
-                                if (j != 0){
-                                    fout << " ";
-                                }
-                                Point r = motions[i]->traces[j];
-                                if (motions[i]->centered){
-                                    r = (r * motions[i]->std) + motions[i]->mean_pose;
-                                }
-                                for (int d = 0; d < D; d++){
-                                    if (d != 0){
-                                        fout << " ";
-                                    }
-                                    fout << r[d];
-                                }
-                            }
-                            fout << endl;
+                            motions[i]->write_data(file_name, true);
+                            //for (int j = 0; j < motions[i]->traces.size(); j++){
+                            //    if (j != 0){
+                            //        fout << " ";
+                            //    }
+                            //    Point r = motions[i]->traces[j];
+                            //    if (motions[i]->centered){
+                            //        r = (r * motions[i]->std) + motions[i]->mean_pose;
+                            //    }
+                            //    for (int d = 0; d < D; d++){
+                            //        if (d != 0){
+                            //            fout << " ";
+                            //        }
+                            //        fout << r[d];
+                            //    }
+                            //}
+                            //fout << endl;
                         }
-                        fout.close();
+                        //fout.close();
                     }
                 }
                 if (delta < params->tol){

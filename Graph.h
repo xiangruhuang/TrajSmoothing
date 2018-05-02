@@ -17,10 +17,28 @@ typedef pair<int, int> FID;
 struct Match{
     FID a, b;
     Float weight;
+    int i, j;
 };
 
 class Graph{
     public:
+        
+        vector<pair<int, int>> search(int K, Point point){
+            int* nn_idx = new int[K];
+            double* dists = new double[K];
+            double* query = to_double(point);
+            knn->annkSearch(query, K, nn_idx, dists, eps);
+            vector<pair<int, int>> ans;
+            for (int i = 0; i < K; i++){
+                ans.push_back(map[nn_idx[i]]);
+            }
+            
+            delete[] nn_idx;
+            delete[] dists;
+            delete[] query;
+
+            return ans;
+        }
         //void construct_via_euclidean(){
         //    num_point = 0;
         //    for (int i = 0; i < traces.size(); i++){
@@ -78,7 +96,6 @@ class Graph{
         //    }
         //}
         //
-        
 
         void construct_via_equal_dist(){
             cerr << "traces.size = " << traces.size() << endl;
@@ -102,7 +119,11 @@ class Graph{
             cerr << traces.size() << endl;
             #pragma omp parallel for
             for (int i = 0; i < traces.size(); i++){
-                vector<pair<int, Point>> m = traces[i]->equal_dist_samples(ord, interval, 1);
+                vector<bool> inside;
+                for (int j = 0; j < traces[i]->traces.size(); j++){
+                    inside.push_back(true);
+                }
+                vector<pair<int, Point>> m = traces[i]->equal_dist_samples(ord, interval, inside);
                 rec[i] = m;
             }
             num_point = 0;
@@ -133,8 +154,8 @@ class Graph{
             rec.clear();
         }
 
-        void construct_via_interpolate(){
-            int num_inter = 50;
+        void construct_via_shortest_path(Params* params, int iter){
+            //int num_inter = 50;
             cerr << "traces.size = " << traces.size() << endl;
             Float avg_norm = 0.0;
             Float norm_down = 0.0;
@@ -147,28 +168,35 @@ class Graph{
                 //cerr << m->traces.size() << endl;
                 norm_down += m->traces.size() - 1.0;
             }
+            map.clear();
+            Float interval = params->interval;
             cerr << "average distance (in l2 norm) = " << avg_norm / norm_down << endl;
-            Float interval = 0.1;
-            cerr << "constructing via equal dist" << ", ord=" << ord << ", dist=" << interval << endl;
+            cerr << "constructing via shortest path" << ", ord=" << ord << ", dist=" << interval << endl;
             D = traces[0]->D * (2*ord+1);
             cerr << "generating points, D=" << D << endl;
             vector<vector<pair<int, Point>>> rec;
             rec.resize(traces.size());
             cerr << traces.size() << endl;
             cerr << "interpolating" << endl;
+            
+            vector<vector<pair<Float, int>>> adj = adjacency_l2(10, all_point->knn, 1e-2);
             #pragma omp parallel for
             for (int i = 0; i < traces.size(); i++){
-                cerr << i << "/" << traces.size() << endl;
-                vector<pair<int, Point>> m = traces[i]->interpolate(num_inter, all_point->knn, ord, interval, "GPS/dump/"+to_string(i)+".txt");
+                cerr << ".";
+                //cerr << i << "/" << traces.size() << endl;
+                //vector<pair<int, Point>> m = traces[i]->interpolate(num_inter, all_point->knn, ord, interval, "GPS/dump/"+to_string(i)+".txt");
+                vector<pair<int, Point>> m = traces[i]->shortest_path(all_point->knn, ord, interval, "GPS/"+params->output_folder+"/map"+to_string(iter)+"/"+to_string(i)+".txt", adj);
                 //vector<pair<int, Point>> m = traces[i]->equal_dist_samples(ord, interval);
                 rec[i] = m;
+                //assert(false);
             }
+            cerr << endl;
             num_point = 0;
             for (int i = 0; i < traces.size(); i++){
                 num_point += rec[i].size();
                 offset.push_back(num_point);
             }
-            cerr << "got in total " << num_point << " points " << endl;
+            cerr << "got in total " << num_point << " points for correspondence graph" << endl;
             int count = 0;
             points = new double*[num_point];
             for (int i = 0; i < traces.size(); i++){
@@ -190,7 +218,7 @@ class Graph{
             }
             rec.clear();
         }
-        void construct(){
+        void construct(Params* params, int iter){
             if (num_point != 0){
                 for (int i = 0; i < num_point; i++){
                     delete[] points[i];
@@ -210,17 +238,16 @@ class Graph{
                 construct_via_equal_dist();
                 flag = true;
             }
-            if (method == "interpolate"){
+            if (method == "shortest_path"){
                 all_point = new Graph(traces, "equal_dist");
-                all_point->construct();
-                construct_via_interpolate();
+                all_point->construct(params, iter);
+                construct_via_shortest_path(params, iter);
                 flag = true;
             }
             if (!flag){
                 cerr << "unknown method: " << method << endl;
                 cerr << "candidates are: " << endl;
-                cerr << "\tdirections" << endl;
-                cerr << "\teuclidean" << endl;
+                cerr << "\tshortest_path" << endl;
                 cerr << "\tequal_dist" << endl;
                 exit(1);
             }
@@ -273,29 +300,17 @@ class Graph{
 
         
 
-        vector<pair<int, int>> search(int K, Point point){
-            int* nn_idx = new int[K];
-            double* dists = new double[K];
-            double* query = to_double(point);
-            knn->annkSearch(points[0], K, nn_idx, dists, eps);
-            vector<pair<int, int>> ans;
-            for (int i = 0; i < K; i++){
-                ans.push_back(map[nn_idx[i]]);
-            }
-            
-            delete[] nn_idx;
-            delete[] dists;
-            delete[] query;
-
-            return ans;
-        }
         
         inline int id(FID fid){
-            return offset[fid.first] + fid.second + ord;
+            assert(false);
+            return offset[fid.first] + fid.second;
         }
 
-        void compute_matchings(int K, string output_folder){
-            cerr << "Compute matchings, K=" << K << endl;
+        void compute_matchings(Params* params, string suffix){
+            string output_folder = params->output_folder;
+            Float sigma = params->sigma;
+            int K = params->K;
+            cerr << "compute matchings, radius=" << params->radius << ", K=" << K << endl;
             matchings.clear();
             for (int i = 0; i < num_point; i++){
                 vector<Match> match_i;
@@ -323,13 +338,15 @@ class Graph{
                 vector<Match>& match_i = matchings[i];
                 int found;
                 int tK = K;
+                Float radius = params->radius;
                 if (i % 1000 == 0){
                     cerr << i << " / " << num_point << endl;
                 }
+                Float max_dist = 0.0;
                 do{
                     int* nn_idx = new int[tK];
                     double* dists = new double[tK];
-                    found = 0;
+                    max_dist = 0.0;
                     knn->annkSearch(points[i], tK, nn_idx, dists, eps);
                     for (int k = 0; k < tK; k++){
                         Match m;
@@ -338,71 +355,92 @@ class Graph{
                                 continue;
                             //}
                         }
-                        found++;
+                        if (max_dist < dists[k]){
+                            max_dist = dists[k];
+                        }
+                        if (dists[k] > radius){
+                            continue;
+                        }
                         m.a = map[i];
+                        m.i = i;
+                        m.j = nn_idx[k];
                         m.b = map[nn_idx[k]];
-                        m.weight = dists[k];
+                        m.weight = Frechet(points[i], points[nn_idx[k]], D, 2);
+                        //m.weight = dists[k];
                         //m.dist = distance(points[i], points[nn_idx[k]], D);
                         match_i.push_back(m);
-                        if (found == K){
-                            break;
-                        }
                     }
-                    if (found < K){
+                    if (max_dist <= radius){
                         match_i.clear();
                         tK = tK * 2;
+                    } else {
+                        if (match_i.size() < K){
+                            match_i.clear();
+                            radius = radius * 1.5;
+                        }
                     }
                     delete[] nn_idx;
                     delete[] dists;
-                } while (found < K);
+                } while (match_i.size() == 0);
+                assert(match_i.size() > 0);
             }
             cerr << "done." << endl; 
-            if (normalize_factor < 0.0){
-                normalize_factor = 0.0;
-                Float down = 1.0;
-                for (int i = 0; i < num_point; i++){
-                    vector<Match>& match_i = matchings[i];
-                    for (int k = 0; k < K; k++){
-                        matchings_per_motion[match_i[k].a.first].push_back(match_i[k]);
-                        Match m;
-                        m.a = match_i[k].b;
-                        m.b = match_i[k].a;
-                        m.weight = match_i[k].weight;
-                        matchings_per_motion[match_i[k].b.first].push_back(m);
-                        normalize_factor += match_i[k].weight;
-                        down += 1.0;
-                    }
-                }
-                normalize_factor /= (down * 1.0);
-            }
-            cerr << "normalizing" << endl;
-            // normalization
+            int num_cor = 0;
             for (int i = 0; i < num_point; i++){
                 vector<Match>& match_i = matchings[i];
-                for (int j = 0; j < match_i.size(); j++){
-                    match_i[j].weight = exp(-match_i[j].weight / normalize_factor);
+                num_cor += match_i.size();
+            }
+            cerr << "average #correspondences=" << (num_cor * 1.0 / num_point) << endl;
+
+            for (int i = 0; i < num_point; i++){
+                vector<Match>& match_i = matchings[i];
+                for (int k = 0; k < match_i.size(); k++){
+                    matchings_per_motion[match_i[k].a.first].push_back(match_i[k]);
+                    Match m;
+                    m.a = match_i[k].b;
+                    m.b = match_i[k].a;
+                    m.i = match_i[k].j;
+                    m.j = match_i[k].i;
+                    m.weight = match_i[k].weight;
+                    matchings_per_motion[match_i[k].b.first].push_back(m);
                 }
             }
+            for (int i = 0; i < num_point; i++){
+                vector<Match>& match_i = matchings[i];
+                for (int k = 0; k < match_i.size(); k++){
+                    matchings_per_motion[match_i[k].a.first].push_back(match_i[k]);
+                    Match m;
+                    m.a = match_i[k].b;
+                    m.b = match_i[k].a;
+                    m.i = match_i[k].j;
+                    m.j = match_i[k].i;
+                    m.weight = match_i[k].weight;
+                    matchings_per_motion[match_i[k].b.first].push_back(m);
+                }
+            }
+
+            cerr << "normalizing" << endl;
             for (int i = 0; i < traces.size(); i++){
                 vector<Match>& match_i = matchings_per_motion[i];
                 for (int j = 0; j < match_i.size(); j++){
-                    match_i[j].weight = 1.0; //exp(-match_i[j].weight / normalize_factor);
+                    Match& m = match_i[j];
+                    m.weight = exp(-m.weight / sigma);
                 }
             }
 
-            ofstream fout("GPS/"+output_folder + "/matchings");
-            cerr << "dumping matchings to " << ("GPS/"+output_folder + "/matchings") << endl;
+            if (params->dump_matchings){
+                ofstream fout("GPS/"+output_folder + "/matchings" + suffix);
+                cerr << "dumping matchings to " << ("GPS/"+output_folder + "/matchings" + suffix) << endl;
 
-            for (int i = 0; i < num_point; i++){
-                vector<Match>& match_i = matchings[i];
-                for (vector<Match>::iterator it = match_i.begin(); it != match_i.end(); it++){
-
-                    fout << it->a.first << " " << it->a.second << " " << it->b.first << " " << it->b.second << " " << it->weight << endl;
+                for (int i = 0; i < traces.size(); i++){
+                    vector<Match>& match_i = matchings_per_motion[i];
+                    for (vector<Match>::iterator it = match_i.begin(); it != match_i.end(); it++){
+                        fout << it->a.first << " " << it->a.second << " " << it->b.first << " " << it->b.second << " " << it->weight << endl;
+                    }
                 }
+
+                fout.close();
             }
-
-            fout.close();
-
         }
 
         vector<pair<int, int>> search(int K, double* point){

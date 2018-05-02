@@ -322,7 +322,7 @@ class GDSolver{
                         string directory = "/home/xiangru/Projects/Qixing/TrajSmoothing/" + dir(file_name);
                         cerr << "\tdumping to " << directory << endl;
                         string command = "mkdir -p " + directory;
-                        system(command.c_str());
+                        int err = system(command.c_str());
                         cerr << " directory created" << endl;
                         ofstream fout(file_name, fstream::out);
                         for (int i = 0; i < traces.size(); i++){
